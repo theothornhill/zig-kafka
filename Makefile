@@ -11,10 +11,10 @@ all: librdkafka run
 # endif
 
 librdkafka:
-		cd c/librdkafka && ./configure
-
-foo:
-		LD_LIBRARY_PATH="$HOME/.guix-profile/lib:$LD_LIBRARY_PATH" zig build run
+	cd c/librdkafka && ./configure
 
 run:
-		zig build run
+	zig build run
+
+test:
+	zig build test --summary all

@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("c.zig").c;
 const log = std.log;
+const panic = std.debug.panic;
 
 pub const LogLevel = enum(u32) {
     Emerg = 0,
@@ -21,6 +22,7 @@ pub const Config = struct {
             var cfg = Config{ .cHandle = h };
 
             try cfg.set("client.software.name", "zig-kafka");
+            try cfg.set("client.software.version", "0.0.1");
 
             return cfg;
         }
@@ -28,28 +30,54 @@ pub const Config = struct {
     }
 
     pub fn set(self: @This(), key: []const u8, value: []const u8) !void {
-        var errstr: [512]u8 = undefined;
-        const c_errstr: [*c]u8 = @ptrCast(&errstr);
-        var res: c.rd_kafka_conf_res_t = undefined;
+        if (key.len == 0) return error.UnknownConfig;
+        if (value.len == 0) return error.InvalidConfig;
 
-        res = c.rd_kafka_conf_set(
+        var errstr: [512]u8 = undefined;
+
+        const res: c.rd_kafka_conf_res_t = c.rd_kafka_conf_set(
             self.cHandle,
             @ptrCast(key),
             @ptrCast(value),
-            c_errstr,
+            &errstr,
             errstr.len,
         );
 
-        switch (res) {
-            c.RD_KAFKA_CONF_INVALID => return error.InvalidConfig,
-            c.RD_KAFKA_CONF_UNKNOWN => return error.UnknownConfig,
-            else => return,
+        return switch (res) {
+            c.RD_KAFKA_CONF_INVALID => error.InvalidConfig,
+            c.RD_KAFKA_CONF_UNKNOWN => error.UnknownConfig,
+            c.RD_KAFKA_CONF_OK => return,
+            else => unreachable,
+        };
+    }
+
+    pub fn get(self: @This(), key: []const u8) ![]const u8 {
+        var target: [512]u8 = undefined;
+        var size: usize = 0;
+        const res = c.rd_kafka_conf_get(
+            self.cHandle,
+            @ptrCast(key),
+            &target,
+            &size,
+        );
+
+        if (size == 0) {
+            return error.UnknownConfig;
         }
+
+        return switch (res) {
+            c.RD_KAFKA_CONF_INVALID => error.InvalidConfig,
+            c.RD_KAFKA_CONF_UNKNOWN => error.UnknownConfig,
+            c.RD_KAFKA_CONF_OK => {
+                if (size > target.len) panic("librdkafka allocated behind the scenes - punishable by death", .{});
+                return target[0 .. size - 1];
+            },
+            else => @panic("unreachable - but we're still here, right?"),
+        };
     }
 
     pub fn setLogLevel(self: @This(), lvl: LogLevel) !void {
-        const key = "log_level";
-        try self.set(key, switch (lvl) {
+        try self.set("log_level", switch (lvl) {
             .Emerg => "0",
             .Alert => "1",
             .Crit => "2",
@@ -73,3 +101,44 @@ pub const Config = struct {
         }
     }
 };
+
+test "config should accept valid entries" {
+    var cfg = try Config.init();
+    var res = try cfg.set("bootstrap.servers", "localhost:9092");
+    try std.testing.expectEqual({}, res);
+
+    cfg = try Config.init();
+    res = try cfg.set("topic.auto.offset.reset", "earliest");
+    try std.testing.expectEqual({}, res);
+}
+
+test "config should reject non-valid entries" {
+    var cfg = try Config.init();
+    var res = cfg.set("bootstap.servers", "localhost:9092");
+    try std.testing.expectError(error.UnknownConfig, res);
+
+    cfg = try Config.init();
+    res = cfg.set("topic.auto.offset.reset", "ørliest");
+    try std.testing.expectError(error.InvalidConfig, res);
+
+    cfg = try Config.init();
+    res = cfg.set("", "wat");
+    try std.testing.expectError(error.UnknownConfig, res);
+
+    cfg = try Config.init();
+    res = cfg.set("auto.offset.reset", "");
+    try std.testing.expectError(error.InvalidConfig, res);
+}
+
+test "config should allow getting values" {
+    var cfg = try Config.init();
+    _ = try cfg.set("bootstrap.servers", "localhost:9092");
+
+    const res = try cfg.get("bootstrap.servers");
+    try std.testing.expectEqualStrings("localhost:9092", res);
+
+    cfg = try Config.init();
+    _ = try cfg.set("bootstrap.servers", "localhost:9092");
+
+    try std.testing.expectError(error.UnknownConfig, cfg.get("botstrap.servers"));
+}

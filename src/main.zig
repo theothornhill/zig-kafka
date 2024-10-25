@@ -11,8 +11,3 @@ pub fn main() !void {
     // Dump should show log.level => 3
     conf.dump();
 }
-
-test "create config" {
-    const config: k.Config = try k.Config.init();
-    std.debug.print("LONNGGNNG: {}", .{config});
-}

@@ -5,3 +5,8 @@ const cfg = @import("config.zig");
 
 pub const Config = cfg.Config;
 pub const LogLevel = cfg.LogLevel;
+
+
+test {
+    @import("std").testing.refAllDecls(@This());
+}
