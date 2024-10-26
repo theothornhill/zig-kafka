@@ -1,9 +1,11 @@
 // zig fmt: off
 
-pub const ResponseError = error{
-    // custom, non-librdkafka values
-    Ignorable,
+const std = @import("std");
 
+pub const ResponseError = error{
+    Fail,                                      // = -196
+    NoOffset,                                  // = -161
+    Destroy,                                   //
     PartitionEOF,                              // = -191,
     Unknown,                                   // = -1,
     NoError,                                   // = 0,
@@ -120,7 +122,129 @@ pub const ResponseError = error{
 
 pub fn from(int: c_int) anyerror {
     return switch (int) {
-        0 => ResponseError.NoError,
-        else => ResponseError.Unknown,
+        0    => ResponseError.NoError,
+        -196 => ResponseError.Fail,
+        -168 => ResponseError.NoOffset,
+        -1   => ResponseError.Unknown,
+        1    => ResponseError.OffsetOutOfRange,
+        2    => ResponseError.InvalidMsg,
+        3    => ResponseError.UnknownTopicOrPart,
+        4    => ResponseError.InvalidMsgSize,
+        5    => ResponseError.LeaderNotAvailable,
+        6    => ResponseError.NotLeaderOrFollower,       // NotLeaderForPartition
+        7    => ResponseError.RequestTimedOut,
+        8    => ResponseError.BrokerNotAvailable,
+        9    => ResponseError.ReplicaNotAvailable,
+        10   => ResponseError.MsgSizeTooLarge,
+        11   => ResponseError.StaleCtrlEpoch,
+        12   => ResponseError.OffsetMetadataTooLarge,
+        13   => ResponseError.NetworkException,
+        14   => ResponseError.CoordinatorLoadInProgress, // GroupLoadInProgress
+        15   => ResponseError.CoordinatorNotAvailable,   // GroupCoordinatorNotAvailable
+        16   => ResponseError.NotCoordinator,            // NotCoordinatorForGroup
+        17   => ResponseError.TopicException,
+        18   => ResponseError.RecordListTooLarge,
+        19   => ResponseError.NotEnoughReplicas,
+        20   => ResponseError.NotEnoughReplicasAfterAppend,
+        21   => ResponseError.InvalidRequiredAcks,
+        22   => ResponseError.IllegalGeneration,
+        23   => ResponseError.InconsistentGroupProtocol,
+        24   => ResponseError.InvalidGroupId,
+        25   => ResponseError.UnknownMemberId,
+        26   => ResponseError.InvalidSessionTimeout,
+        27   => ResponseError.RebalanceInProgress,
+        28   => ResponseError.InvalidCommitOffsetSize,
+        29   => ResponseError.TopicAuthorizationFailed,
+        30   => ResponseError.GroupAuthorizationFailed,
+        31   => ResponseError.ClusterAuthorizationFailed,
+        32   => ResponseError.InvalidTimestamp,
+        33   => ResponseError.UnsupportedSaslMechanism,
+        34   => ResponseError.IllegalSaslState,
+        35   => ResponseError.UnsupportedVersion,
+        36   => ResponseError.TopicAlreadyExists,
+        37   => ResponseError.InvalidPartitions,
+        38   => ResponseError.InvalidReplicationFactor,
+        39   => ResponseError.InvalidReplicaAssignment,
+        40   => ResponseError.InvalidConfig,
+        41   => ResponseError.NotController,
+        42   => ResponseError.InvalidRequest,
+        43   => ResponseError.UnsupportedForMessageFormat,
+        44   => ResponseError.PolicyViolation,
+        45   => ResponseError.OutOfOrderSequenceNumber,
+        46   => ResponseError.DuplicateSequenceNumber,
+        47   => ResponseError.InvalidProducerEpoch,
+        48   => ResponseError.InvalidTxnState,
+        49   => ResponseError.InvalidProducerIdMapping,
+        50   => ResponseError.InvalidTransactionTimeout,
+        51   => ResponseError.ConcurrentTransactions,
+        52   => ResponseError.TransactionCoordinatorFenced,
+        53   => ResponseError.TransactionalIdAuthorizationFailed,
+        54   => ResponseError.SecurityDisabled,
+        55   => ResponseError.OperationNotAttempted,
+        56   => ResponseError.KafkaStorageError,
+        57   => ResponseError.LogDirNotFound,
+        58   => ResponseError.SaslAuthenticationFailed,
+        59   => ResponseError.UnknownProducerId,
+        60   => ResponseError.ReassignmentInProgress,
+        61   => ResponseError.DelegationTokenAuthDisabled,
+        62   => ResponseError.DelegationTokenNotFound,
+        63   => ResponseError.DelegationTokenOwnerMismatch,
+        64   => ResponseError.DelegationTokenRequestNotAllowed,
+        65   => ResponseError.DelegationTokenAuthorizationFailed,
+        66   => ResponseError.DelegationTokenExpired,
+        67   => ResponseError.InvalidPrincipalType,
+        68   => ResponseError.NonEmptyGroup,
+        69   => ResponseError.GroupIdNotFound,
+        70   => ResponseError.FetchSessionIdNotFound,
+        71   => ResponseError.InvalidFetchSessionEpoch,
+        72   => ResponseError.ListenerNotFound,
+        73   => ResponseError.TopicDeletionDisabled,
+        74   => ResponseError.FencedLeaderEpoch,
+        75   => ResponseError.UnknownLeaderEpoch,
+        76   => ResponseError.UnsupportedCompressionType,
+        77   => ResponseError.StaleBrokerEpoch,
+        78   => ResponseError.OffsetNotAvailable,
+        79   => ResponseError.MemberIdRequired,
+        80   => ResponseError.PreferredLeaderNotAvailable,
+        81   => ResponseError.GroupMaxSizeReached,
+        82   => ResponseError.FencedInstanceId,
+        83   => ResponseError.EligibleLeadersNotAvailable,
+        84   => ResponseError.ElectionNotNeeded,
+        85   => ResponseError.NoReassignmentInProgress,
+        86   => ResponseError.GroupSubscribedToTopic,
+        87   => ResponseError.InvalidRecord,
+        88   => ResponseError.UnstableOffsetCommit,
+        89   => ResponseError.ThrottlingQuotaExceeded,
+        90   => ResponseError.ProducerFenced,
+        91   => ResponseError.ResourceNotFound,
+        92   => ResponseError.DuplicateResource,
+        93   => ResponseError.UnacceptableCredential,
+        94   => ResponseError.InconsistentVoterSet,
+        95   => ResponseError.InvalidUpdateVersion,
+        96   => ResponseError.FeatureUpdateFailed,
+        97   => ResponseError.PrincipalDeserializationFailure,
+        100  => ResponseError.UnknownTopicId,
+        110  => ResponseError.FencedMemberEpoch,
+        111  => ResponseError.UnreleasedInstanceId,
+        112  => ResponseError.UnsupportedAssignor,
+        113  => ResponseError.StaleMemberEpoch,
+        117  => ResponseError.UnknownSubscriptionId,
+        118  => ResponseError.TelemetryTooLarge,
+        else => |e| {
+            std.log.err("err: {any}", .{e});
+            return ResponseError.Unknown;
+        },
     };
+}
+
+/// Returns void for ignorable errors, otherwise error
+///
+/// Effectively this creates a passthrough noop in case we hit the ignorable
+/// errors.
+pub fn ok(int: c_int) !void {
+    switch (from(int)) {
+        ResponseError.NoError => {},
+        ResponseError.NoOffset => {},
+        else => |e| return e,
+    }
 }

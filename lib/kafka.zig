@@ -14,6 +14,9 @@ pub const Consumer = consumer;
 pub const Topic = topic.Topic;
 pub const ResponseError = errors.ResponseError;
 
+// TODO(Theo): Don't expose this in the end!
+pub const C = c;
+
 test {
     @import("std").testing.refAllDecls(@This());
 }

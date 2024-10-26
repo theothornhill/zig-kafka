@@ -13,8 +13,8 @@ pub const Producer = struct {
     pub fn init() !Producer {
         var cfg = try config.init();
         try cfg.set("bootstrap.servers", "kafka:9092");
-        try cfg.set("acks", "all");
-        // try cfg.set("debug", "producer");
+        try cfg.set("request.required.acks", "-1");
+        // try cfg.set("debug", "all");
 
         var buf: [512]u8 = undefined;
 
@@ -35,14 +35,19 @@ pub const Producer = struct {
     }
 
     pub fn flush(self: @This(), timeout_ms: usize) !void {
-        const res = c.rd_kafka_flush(self.handle, @intCast(timeout_ms));
-        switch (errors.from(res)) {
-            ResponseError.NoError => {},
-            else => |e| return e,
-        }
+        try errors.ok(
+            c.rd_kafka_flush(self.handle, @intCast(timeout_ms)),
+        );
+    }
+
+    pub fn poll(self: @This(), timeout_ms: usize) !void {
+        try errors.ok(
+            c.rd_kafka_poll(self.handle, @intCast(timeout_ms)),
+        );
     }
 
     pub fn produce(self: @This(), message: Message) !void {
+        _ = self;
         const res = c.rd_kafka_produce(
             message.topic.t,
             message.topic.partition,
@@ -55,8 +60,8 @@ pub const Producer = struct {
         );
 
         switch (errors.from(res)) {
-            ResponseError.NoError => try self.flush(1000),
-            ResponseError.Unknown => return errors.from(c.rd_kafka_errno2err(res)),
+            ResponseError.NoError => {},
+            ResponseError.Unknown => try errors.ok(c.rd_kafka_errno2err(res)),
             else => @panic("Undocumented error code from librdkafka found"),
         }
     }

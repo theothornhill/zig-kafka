@@ -20,8 +20,9 @@ pub const Topic = struct {
             .name = name,
         };
     }
+
     pub fn deinit(self: @This()) void {
-        c.rd_kafka_topic_destroy(self.msg);
+        c.rd_kafka_topic_destroy(self.t);
     }
 
     fn unpack(comptime T: type, v: ?*anyopaque, len: usize) T {

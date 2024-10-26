@@ -10,20 +10,30 @@ const ResponseError = errors.ResponseError;
 
 pub const Consumer = struct {
     handle: *c.rd_kafka_t,
+    // I believe we can sync some state here for the broker rebalance, handshake
+    // etc. Not sure, though...
+    topics: [*c]c.rd_kafka_topic_partition_list_t,
 
     pub fn init() !Consumer {
         var cfg = try config.init();
         try cfg.set("bootstrap.servers", "kafka:9092");
         try cfg.set("auto.offset.reset", "earliest");
-        try cfg.set("group.id", "iairasetnaireniaresntrrisetnaairsentin");
+        try cfg.set("enable.auto.commit", "true");
+        try cfg.set("group.id", "theoestnen");
         // try cfg.set("debug", "consumer");
 
         var buf: [512]u8 = undefined;
 
         const consumer = c.rd_kafka_new(c.RD_KAFKA_CONSUMER, cfg.handle, &buf, buf.len);
         if (consumer) |cons| {
-            _ = c.rd_kafka_poll_set_consumer(cons);
-            return .{ .handle = cons };
+            try errors.ok(
+                c.rd_kafka_poll_set_consumer(cons),
+            );
+
+            return .{
+                .handle = cons,
+                .topics = c.rd_kafka_topic_partition_list_new(1),
+            };
         }
         return error.ConsumerInit;
     }
@@ -34,27 +44,36 @@ pub const Consumer = struct {
             @panic("WHOA WE DONE FUCKED UP!");
         }
 
+        c.rd_kafka_topic_partition_list_destroy(self.topics);
+
         c.rd_kafka_destroy(self.handle);
     }
 
     pub fn poll(self: @This(), timeout_ms: u64) !?k.Consumer.Message {
-        return try k.Consumer.Message.init(
-            c.rd_kafka_consumer_poll(self.handle, @intCast(timeout_ms)),
+        const msg = c.rd_kafka_consumer_poll(self.handle, @intCast(timeout_ms));
+        if (msg) |_| {
+            return try k.Consumer.Message.init(msg);
+        }
+        return null;
+    }
+
+    pub fn commit(self: @This()) !void {
+        try errors.ok(
+            c.rd_kafka_commit(self.handle, self.topics, 1),
         );
     }
 
     pub fn subscribe(self: @This()) !void {
         const topic = "rs-load-fast-event-v1";
+        _ = c.rd_kafka_topic_partition_list_add(
+            self.topics,
+            @ptrCast(topic),
+            c.RD_KAFKA_PARTITION_UA,
+        );
 
-        const topics = c.rd_kafka_topic_partition_list_new(1);
-        _ = c.rd_kafka_topic_partition_list_add(topics, @ptrCast(topic), c.RD_KAFKA_PARTITION_UA);
-        defer c.rd_kafka_topic_partition_list_destroy(topics);
-
-        const res = c.rd_kafka_subscribe(self.handle, topics);
-        if (res != c.RD_KAFKA_RESP_ERR_NO_ERROR) {
-            std.debug.print("Failed to subscribe: {}\n", .{res});
-            return error.Consume;
-        }
+        try errors.ok(
+            c.rd_kafka_subscribe(self.handle, self.topics),
+        );
     }
 };
 
@@ -74,13 +93,7 @@ pub const Message = struct {
 
     pub fn init(msg: ?*c.struct_rd_kafka_message_s) !?@This() {
         if (msg) |message| {
-            // If the message has succeed, we want to remove error
-            // information, so that we don't have to handle errors every
-            // time we access fields here, even when the message is ok.
-            switch (errors.from(message.err)) {
-                ResponseError.NoError => {},
-                else => |e| return e,
-            }
+            try errors.ok(message.err);
 
             return .{
                 .offset = message.offset,

@@ -32,38 +32,58 @@ pub fn main() !void {
     var keyPayload: [3]u8 = [_]u8{ 'f', 'o', 'o' };
 
     var producer = try k.Producer.Producer.init();
-
-    log.info("producing: key: {s}, val: {x}", .{ keyPayload, val });
-
-    _ = try producer.produce(
-        k.Producer.Message.init(
-            k.Topic.init(producer.handle, "rs-load-fast-event-v1"),
-            &val,
-            &keyPayload,
-        ),
-    );
-
     var consumer = try k.Consumer.Consumer.init();
-
     _ = try consumer.subscribe();
 
-    while (true) {
-        const msg = consumer.poll(250) catch |err| switch (err) {
+    const top = k.Topic.init(producer.handle, "rs-load-fast-event-v1");
+    defer top.deinit();
+
+    var timer = try std.time.Timer.start();
+    var start: u64 = 0;
+    const mesg = k.Producer.Message.init(
+        top,
+        &val,
+        &keyPayload,
+    );
+    std.debug.print("mesg {}", .{mesg});
+
+    var i: usize = 0;
+    while (i < 1000000) : (i += 1) {
+        // log.info("producing: key: {s}, val: {x}", .{ keyPayload, val });
+        _ = try producer.produce(
+            mesg,
+        );
+
+        if (i % 100000 == 0) {
+            try producer.poll(10);
+        }
+
+        const msg = consumer.poll(5) catch |err| switch (err) {
             ResponseError.PartitionEOF => continue,
-            ResponseError.Ignorable => continue,
+            ResponseError.NoOffset => continue,
             else => return err,
         };
 
         if (msg) |message| {
-            // defer message.deinit();
+            if (start == 0) {
+                std.debug.print("\nstarting\n", .{});
+                start = timer.lap();
+            }
+            defer message.deinit();
             if (message.payload) |payload| {
                 var r: Record = undefined;
                 _ = try avro.read(Record, &r, payload);
 
-                std.debug.print("record: {s}, {}, {}\n", .{ r.message, r.valid.?, r.onion.number });
-                std.debug.print("key: {s}\n", .{message.key});
-                std.debug.print("offset: {any}\n", .{message.offset});
+                if (i % 100000 == 0) {
+                    std.debug.print("record: {s}, {}, {} - ", .{ r.message, r.valid.?, r.onion.number });
+                    std.debug.print("key: {s} - ", .{message.key});
+                    std.debug.print("offset: {any}\n", .{message.offset});
+                }
             }
+            try consumer.commit();
         }
     }
+    try producer.poll(10);
+    const end = timer.lap();
+    std.debug.print("time:: {}", .{(end - start) / 1_000_000});
 }
