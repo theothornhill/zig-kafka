@@ -37,8 +37,16 @@ pub fn build(b: *std.Build) void {
     });
     kafka.linkLibrary(libressl_dependency.artifact("ssl"));
 
-    const cflags = &[_][]const u8{ "-MD", "-MP", "-g", "-O2", "-fPIC", "-Wall", "-Wsign-compare", "-Wfloat-equal", "-Wpointer-arith", "-Wcast-align" };
-
+    const cflags = &[_][]const u8{
+        "-g",
+        "-O0",
+        "-fPIC",
+        "-Wall",
+        "-Wsign-compare",
+        "-Wfloat-equal",
+        "-Wpointer-arith",
+        "-Wcast-align",
+    };
     kafka.addIncludePath(b.path("c/librdkafka/"));
     kafka.addIncludePath(b.path("c/librdkafka/src"));
     kafka.addIncludePath(b.path("c/librdkafka/src/nanopb"));
@@ -153,6 +161,12 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("kafka", &kafka.root_module);
 
+    const zigavro = b.dependency("zigavro", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("zigavro", zigavro.module("zigavro"));
+
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -176,6 +190,7 @@ pub fn build(b: *std.Build) void {
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/nanopb"));
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
     exe_unit_tests.root_module.addImport("kafka", &kafka.root_module);
+    exe_unit_tests.root_module.addImport("zigavro", zigavro.module("zigavro"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

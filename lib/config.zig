@@ -14,20 +14,21 @@ pub const LogLevel = enum(u32) {
     Debug = 7,
 };
 
-pub const Config = struct {
-    cHandle: *c.rd_kafka_conf_t,
+pub fn init() !Config {
+    if (c.rd_kafka_conf_new()) |h| {
+        var cfg = Config{ .handle = h };
 
-    pub fn init() !@This() {
-        if (c.rd_kafka_conf_new()) |h| {
-            var cfg = Config{ .cHandle = h };
+        try cfg.set("client.software.name", "zig-kafka");
+        try cfg.set("client.software.version", "0.0.1");
 
-            try cfg.set("client.software.name", "zig-kafka");
-            try cfg.set("client.software.version", "0.0.1");
-
-            return cfg;
-        }
-        return error.ConfInit;
+        return cfg;
     }
+    return error.ConfInit;
+}
+
+pub const Config = struct {
+    handle: *c.rd_kafka_conf_t,
+
 
     pub fn set(self: @This(), key: []const u8, value: []const u8) !void {
         if (key.len == 0) return error.UnknownConfig;
@@ -36,7 +37,7 @@ pub const Config = struct {
         var errstr: [512]u8 = undefined;
 
         const res: c.rd_kafka_conf_res_t = c.rd_kafka_conf_set(
-            self.cHandle,
+            self.handle,
             @ptrCast(key),
             @ptrCast(value),
             &errstr,
@@ -47,7 +48,7 @@ pub const Config = struct {
             c.RD_KAFKA_CONF_INVALID => error.InvalidConfig,
             c.RD_KAFKA_CONF_UNKNOWN => error.UnknownConfig,
             c.RD_KAFKA_CONF_OK => return,
-            else => unreachable,
+            else => @panic("unreachable config set"),
         };
     }
 
@@ -55,7 +56,7 @@ pub const Config = struct {
         var target: [512]u8 = undefined;
         var size: usize = 0;
         const res = c.rd_kafka_conf_get(
-            self.cHandle,
+            self.handle,
             @ptrCast(key),
             &target,
             &size,
@@ -91,7 +92,7 @@ pub const Config = struct {
 
     pub fn dump(self: @This()) void {
         var count: usize = undefined;
-        const arr = c.rd_kafka_conf_dump(self.cHandle, &count);
+        const arr = c.rd_kafka_conf_dump(self.handle, &count);
         defer c.rd_kafka_conf_dump_free(arr, count);
 
         log.info("Kafka Config", .{});
@@ -103,41 +104,41 @@ pub const Config = struct {
 };
 
 test "config should accept valid entries" {
-    var cfg = try Config.init();
+    var cfg = try init();
     var res = try cfg.set("bootstrap.servers", "localhost:9092");
     try std.testing.expectEqual({}, res);
 
-    cfg = try Config.init();
+    cfg = try init();
     res = try cfg.set("topic.auto.offset.reset", "earliest");
     try std.testing.expectEqual({}, res);
 }
 
 test "config should reject non-valid entries" {
-    var cfg = try Config.init();
+    var cfg = try init();
     var res = cfg.set("bootstap.servers", "localhost:9092");
     try std.testing.expectError(error.UnknownConfig, res);
 
-    cfg = try Config.init();
+    cfg = try init();
     res = cfg.set("topic.auto.offset.reset", "ørliest");
     try std.testing.expectError(error.InvalidConfig, res);
 
-    cfg = try Config.init();
+    cfg = try init();
     res = cfg.set("", "wat");
     try std.testing.expectError(error.UnknownConfig, res);
 
-    cfg = try Config.init();
+    cfg = try init();
     res = cfg.set("auto.offset.reset", "");
     try std.testing.expectError(error.InvalidConfig, res);
 }
 
 test "config should allow getting values" {
-    var cfg = try Config.init();
+    var cfg = try init();
     _ = try cfg.set("bootstrap.servers", "localhost:9092");
 
     const res = try cfg.get("bootstrap.servers");
     try std.testing.expectEqualStrings("localhost:9092", res);
 
-    cfg = try Config.init();
+    cfg = try init();
     _ = try cfg.set("bootstrap.servers", "localhost:9092");
 
     try std.testing.expectError(error.UnknownConfig, cfg.get("botstrap.servers"));
