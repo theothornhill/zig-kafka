@@ -161,11 +161,11 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("kafka", &kafka.root_module);
 
-    const zigavro = b.dependency("zigavro", .{
+    const @"zig-avro" = b.dependency("zig-avro", .{
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("zigavro", zigavro.module("zigavro"));
+    exe.root_module.addImport("zig-avro", @"zig-avro".module("zig-avro"));
 
     b.installArtifact(exe);
 
@@ -190,7 +190,7 @@ pub fn build(b: *std.Build) void {
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/nanopb"));
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
     exe_unit_tests.root_module.addImport("kafka", &kafka.root_module);
-    exe_unit_tests.root_module.addImport("zigavro", zigavro.module("zigavro"));
+    exe_unit_tests.root_module.addImport("zig-avro", @"zig-avro".module("zig-avro"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

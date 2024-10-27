@@ -31,9 +31,9 @@
             .url = "git+https://github.com/allyourcodebase/libressl?ref=3.9.2+1#02abfefee4e4eda28ce53c637b3c0d204ace8a6d",
             .hash = "12201f5cc06c88f191696106723797449baacb6ea38b07b6cf31c18c0382a6bea33e",
         },
-        .zigavro = .{
-            .url = "https://token@github.com/tv2norge/zigavro/archive/refs/heads/main.zip",
-            .hash = "12207a9a94a6474c28facd1c0ac041ed435487112f9b3b1ef142bc37c8dd394a0b3f",
+        .@"zig-avro" = .{
+            .url = "https://github.com/theothornhill/zig-avro/archive/refs/heads/main.zip",
+            .hash = "12202cde273ae6de79c29bf22aff7ca3a635a03afe958434546bfa51da9133f5e32c",
         },
     },
     .paths = .{

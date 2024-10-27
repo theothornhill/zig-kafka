@@ -3,7 +3,7 @@ const log = std.log;
 
 const k = @import("kafka");
 const ResponseError = k.ResponseError;
-const avro = @import("zigavro");
+const avro = @import("zig-avro");
 
 const Record = struct {
     valid: ?bool,
