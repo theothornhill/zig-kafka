@@ -14,21 +14,20 @@ pub const LogLevel = enum(u32) {
     Debug = 7,
 };
 
-pub fn init() !Config {
-    if (c.rd_kafka_conf_new()) |h| {
-        var cfg = Config{ .handle = h };
-
-        try cfg.set("client.software.name", "zig-kafka");
-        try cfg.set("client.software.version", "0.0.1");
-
-        return cfg;
-    }
-    return error.ConfInit;
-}
-
 pub const Config = struct {
     handle: *c.rd_kafka_conf_t,
 
+    pub fn init() !Config {
+        if (c.rd_kafka_conf_new()) |h| {
+            var cfg = Config{ .handle = h };
+
+            try cfg.set("client.software.name", "zig-kafka");
+            try cfg.set("client.software.version", "0.0.1");
+
+            return cfg;
+        }
+        return error.ConfInit;
+    }
 
     pub fn set(self: @This(), key: []const u8, value: []const u8) !void {
         if (key.len == 0) return error.UnknownConfig;
@@ -104,41 +103,41 @@ pub const Config = struct {
 };
 
 test "config should accept valid entries" {
-    var cfg = try init();
+    var cfg = try Config.init();
     var res = try cfg.set("bootstrap.servers", "localhost:9092");
     try std.testing.expectEqual({}, res);
 
-    cfg = try init();
+    cfg = try Config.init();
     res = try cfg.set("topic.auto.offset.reset", "earliest");
     try std.testing.expectEqual({}, res);
 }
 
 test "config should reject non-valid entries" {
-    var cfg = try init();
+    var cfg = try Config.init();
     var res = cfg.set("bootstap.servers", "localhost:9092");
     try std.testing.expectError(error.UnknownConfig, res);
 
-    cfg = try init();
+    cfg = try Config.init();
     res = cfg.set("topic.auto.offset.reset", "ørliest");
     try std.testing.expectError(error.InvalidConfig, res);
 
-    cfg = try init();
+    cfg = try Config.init();
     res = cfg.set("", "wat");
     try std.testing.expectError(error.UnknownConfig, res);
 
-    cfg = try init();
+    cfg = try Config.init();
     res = cfg.set("auto.offset.reset", "");
     try std.testing.expectError(error.InvalidConfig, res);
 }
 
 test "config should allow getting values" {
-    var cfg = try init();
+    var cfg = try Config.init();
     _ = try cfg.set("bootstrap.servers", "localhost:9092");
 
     const res = try cfg.get("bootstrap.servers");
     try std.testing.expectEqualStrings("localhost:9092", res);
 
-    cfg = try init();
+    cfg = try Config.init();
     _ = try cfg.set("bootstrap.servers", "localhost:9092");
 
     try std.testing.expectError(error.UnknownConfig, cfg.get("botstrap.servers"));

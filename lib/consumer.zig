@@ -9,48 +9,45 @@ const errors = @import("errors.zig");
 const ResponseError = errors.ResponseError;
 
 pub const Consumer = struct {
-    handle: *c.rd_kafka_t,
-    // I believe we can sync some state here for the broker rebalance, handshake
-    // etc. Not sure, though...
+    rk: *c.rd_kafka_t,
+    queue: *c.rd_kafka_queue_t,
     topics: [*c]c.rd_kafka_topic_partition_list_t,
 
-    pub fn init() !Consumer {
-        var cfg = try config.init();
-        try cfg.set("bootstrap.servers", "kafka:9092");
-        try cfg.set("auto.offset.reset", "earliest");
-        try cfg.set("enable.auto.commit", "true");
-        try cfg.set("group.id", "theoestnen");
-        // try cfg.set("debug", "consumer");
-
+    pub fn init(cfg: config.Config) !@This() {
         var buf: [512]u8 = undefined;
 
-        const consumer = c.rd_kafka_new(c.RD_KAFKA_CONSUMER, cfg.handle, &buf, buf.len);
-        if (consumer) |cons| {
+        if (c.rd_kafka_new(c.RD_KAFKA_CONSUMER, cfg.handle, &buf, buf.len)) |rk| {
             try errors.ok(
-                c.rd_kafka_poll_set_consumer(cons),
+                c.rd_kafka_poll_set_consumer(rk),
             );
 
-            return .{
-                .handle = cons,
-                .topics = c.rd_kafka_topic_partition_list_new(1),
+            const queue = if (c.rd_kafka_queue_get_consumer(rk)) |q|
+                q
+            else // We default to main queue if we don't have any consumer group
+                c.rd_kafka_queue_get_main(rk).?;
+
+            return Consumer{
+                .rk = rk,
+                .queue = queue,
+                .topics = c.rd_kafka_topic_partition_list_new(10),
             };
         }
-        return error.ConsumerInit;
+        @panic("Consumer handle failed initializing");
     }
 
     pub fn deinit(self: @This()) void {
-        const close = c.rd_kafka_consumer_close(self.handle);
+        const close = c.rd_kafka_consumer_close(self.rk);
         if (close != c.RD_KAFKA_RESP_ERR_NO_ERROR) {
             @panic("WHOA WE DONE FUCKED UP!");
         }
 
         c.rd_kafka_topic_partition_list_destroy(self.topics);
 
-        c.rd_kafka_destroy(self.handle);
+        c.rd_kafka_destroy(self.rk);
     }
 
     pub fn poll(self: @This(), timeout_ms: u64) !?k.Consumer.Message {
-        const msg = c.rd_kafka_consumer_poll(self.handle, @intCast(timeout_ms));
+        const msg = c.rd_kafka_consumer_poll(self.rk, @intCast(timeout_ms));
         if (msg) |_| {
             return try k.Consumer.Message.init(msg);
         }
@@ -59,7 +56,7 @@ pub const Consumer = struct {
 
     pub fn commit(self: @This()) !void {
         try errors.ok(
-            c.rd_kafka_commit(self.handle, self.topics, 1),
+            c.rd_kafka_commit(self.rk, self.topics, 1),
         );
     }
 
@@ -72,7 +69,7 @@ pub const Consumer = struct {
         );
 
         try errors.ok(
-            c.rd_kafka_subscribe(self.handle, self.topics),
+            c.rd_kafka_subscribe(self.rk, self.topics),
         );
     }
 };
@@ -111,7 +108,6 @@ pub const Message = struct {
 
     fn unpack(comptime T: type, v: ?*anyopaque, len: usize) T {
         return switch (T) {
-            i32 => 56,
             []const u8 => {
                 const bytePtr: [*c]const u8 = @ptrCast(v);
                 return bytePtr[0..len];

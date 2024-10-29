@@ -9,29 +9,47 @@ const Topic = @import("topic.zig").Topic;
 
 pub const Producer = struct {
     handle: *c.rd_kafka_t,
+    queue: *c.rd_kafka_queue_t,
 
-    pub fn init() !Producer {
-        var cfg = try config.init();
-        try cfg.set("bootstrap.servers", "kafka:9092");
-        try cfg.set("request.required.acks", "-1");
-        // try cfg.set("debug", "all");
+    pub const Message = struct {
+        offset: i64 = 0,
+        partition: i32 = 0,
+        payload: ?[]const u8,
+        key: []const u8,
+        topic: Topic,
 
-        var buf: [512]u8 = undefined;
+        pub fn init(topic: Topic, payload: ?[]const u8, key: []const u8) @This() {
+            return .{
+                .payload = payload,
+                .key = key,
+                .topic = topic,
+            };
+        }
+    };
 
-        const producer = c.rd_kafka_new(c.RD_KAFKA_PRODUCER, cfg.handle, &buf, buf.len);
-        return if (producer) |p|
-            .{ .handle = p }
+    pub fn init(cfg: config.Config) !Producer {
+
+        // c.rd_kafka_conf_set_events(
+        //     cfg.handle,
+        //     c.RD_KAFKA_EVENT_DR, // | c.RD_KAFKA_EVENT_STATS | c.RD_KAFKA_EVENT_ERROR | c.RD_KAFKA_EVENT_OAUTHBEARER_TOKEN_REFRESH,
+        // );
+
+        var buf: [256]u8 = undefined;
+
+        return if (c.rd_kafka_new(c.RD_KAFKA_PRODUCER, cfg.handle, &buf, buf.len)) |ph|
+            Producer{
+                .handle = ph,
+                .queue = c.rd_kafka_queue_get_main(ph).?,
+            }
         else
             error.ProducerInit;
     }
 
     pub fn deinit(self: @This()) void {
-        self.flush(10000);
-        if (flush != c.RD_KAFKA_RESP_ERR_NO_ERROR) {
-            @panic("WHOA WE DONE FUCKED UP!");
-        }
-
-        c.rd_kafka_destroy(self.handle);
+        self.flush(10000) catch |err| switch (err) {
+            else => std.debug.print("ERROR DEINIT", .{}),
+        };
+        // c.rd_kafka_destroy(self.handle);
     }
 
     pub fn flush(self: @This(), timeout_ms: usize) !void {
@@ -84,26 +102,10 @@ test "producer" {
 
     var producer = try Producer.init();
     _ = try producer.produce(
-        Message.init(
+        Producer.Message.init(
             Topic.init(producer.handle, "rs-load-fast-event-v1"),
             &val,
             &key,
         ),
     );
 }
-
-pub const Message = struct {
-    offset: i64 = 0,
-    partition: i32 = 0,
-    payload: ?[]const u8,
-    key: []const u8,
-    topic: Topic,
-
-    pub fn init(topic: Topic, payload: ?[]const u8, key: []const u8) @This() {
-        return .{
-            .payload = payload,
-            .key = key,
-            .topic = topic,
-        };
-    }
-};

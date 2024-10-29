@@ -6,84 +6,109 @@ const ResponseError = k.ResponseError;
 const avro = @import("zig-avro");
 
 const Record = struct {
-    valid: ?bool,
-    message: []const u8,
-    items: avro.Array(i32),
-    onion: union(enum) {
-        str: []const u8,
-        number: i32,
-        none,
-    },
+    happy: bool,
+    arms: i32,
+    legs: i64,
+    width: f32,
+    height: f64,
 };
 
-pub fn main() !void {
-    var val: [10]u8 = [_]u8{
-        1 << 1,
-        1, // valid: true
-        2 << 1, // message:len 2
-        'H',
-        'I',
-        1 << 1, // items array: len 1
-        5 << 1, // items[0] = 5
-        0, // end of array
-        1 << 1,
-        2 << 1, // message:len 2
-    };
+const num_messages = 1_000_000;
+
+fn produce() !void {
     var keyPayload: [3]u8 = [_]u8{ 'f', 'o', 'o' };
 
-    var producer = try k.Producer.Producer.init();
-    var consumer = try k.Consumer.Consumer.init();
-    _ = try consumer.subscribe();
+    var cfg = try k.Config.init();
+    try cfg.set("bootstrap.servers", "kafka:9092");
+    try cfg.set("request.required.acks", "all");
+    // try cfg.set("debug", "broker,topic,msg");
+    // try cfg.set("linger.ms", "0");
+
+    var writeBuffer: [100]u8 = undefined;
+    var r1: Record = .{
+        .happy = true,
+        .arms = 1_000_000,
+        .legs = 0,
+        .width = 5.5,
+        .height = 93203291039213.9012,
+    };
+
+    var producer = try k.Producer.init(cfg);
+    defer producer.deinit();
 
     const top = k.Topic.init(producer.handle, "rs-load-fast-event-v1");
     defer top.deinit();
 
     var timer = try std.time.Timer.start();
     var start: u64 = 0;
-    const mesg = k.Producer.Message.init(
-        top,
-        &val,
-        &keyPayload,
-    );
-    std.debug.print("mesg {}", .{mesg});
-
+    start = timer.lap();
     var i: usize = 0;
-    while (i < 1000000) : (i += 1) {
-        // log.info("producing: key: {s}, val: {x}", .{ keyPayload, val });
-        _ = try producer.produce(
-            mesg,
-        );
+
+    while (i < num_messages) : (i += 1) {
+        _ = try producer.produce(k.Producer.Message.init(
+            top,
+            try avro.Writer.write(Record, &r1, &writeBuffer),
+            &keyPayload,
+        ));
 
         if (i % 100000 == 0) {
             try producer.poll(10);
         }
+    }
+    try producer.poll(10);
+    const end = timer.lap();
 
+    std.debug.print("\nDone producing messages - time:: {}\n", .{(end - start) / 1_000_000});
+}
+
+fn consume() !void {
+    var cfg = try k.Config.init();
+    try cfg.set("bootstrap.servers", "kafka:9092");
+    try cfg.set("auto.offset.reset", "earliest");
+    try cfg.set("auto.commit.interval.ms", "10000");
+    try cfg.set("fetch.wait.max.ms", "50000");
+    try cfg.set("queued.min.messages", "1000000");
+    try cfg.set("group.id", "theoestnenisretn");
+    // try cfg.set("fetch.queue.backoff.ms", "100");
+    // try cfg.set("enable.auto.commit", "false");
+    // try cfg.set("debug", "consumer");
+
+    var consumer = try k.Consumer.Consumer.init(cfg);
+    defer consumer.deinit();
+    _ = try consumer.subscribe();
+
+    var timer = try std.time.Timer.start();
+    var start: u64 = 0;
+    var i: usize = 0;
+    var r: Record = undefined;
+    start = timer.lap();
+    while (i < num_messages) : (i += 1) {
         const msg = consumer.poll(5) catch |err| switch (err) {
             ResponseError.PartitionEOF => continue,
-            ResponseError.NoOffset => continue,
+            ResponseError.NoOffset => return,
             else => return err,
         };
 
         if (msg) |message| {
-            if (start == 0) {
-                std.debug.print("\nstarting\n", .{});
-                start = timer.lap();
-            }
             defer message.deinit();
             if (message.payload) |payload| {
-                var r: Record = undefined;
-                _ = try avro.read(Record, &r, payload);
+                _ = try avro.Reader.read(Record, &r, payload);
 
                 if (i % 100000 == 0) {
-                    std.debug.print("record: {s}, {}, {} - ", .{ r.message, r.valid.?, r.onion.number });
-                    std.debug.print("key: {s} - ", .{message.key});
-                    std.debug.print("offset: {any}\n", .{message.offset});
+                    std.debug.print("Reading...\n", .{});
                 }
             }
-            try consumer.commit();
         }
     }
-    try producer.poll(10);
     const end = timer.lap();
-    std.debug.print("time:: {}", .{(end - start) / 1_000_000});
+    std.debug.print("\nDone consuming messages - time:: {}\n", .{(end - start) / 1_000_000});
+    std.debug.print("record: {}, {}, {}, {}, {}\n", .{ r.happy, r.arms, r.height, r.legs, r.width });
+}
+
+pub fn main() !void {
+    const producer = try std.Thread.spawn(.{}, produce, .{});
+    const consumer = try std.Thread.spawn(.{}, consume, .{});
+
+    producer.join();
+    consumer.join();
 }

@@ -14,10 +14,10 @@ librdkafka:
 	cd c/librdkafka && ./configure
 
 run-fast:
-	zig build run -Doptimize=ReleaseFast
+	zig build run -Doptimize=ReleaseFast --summary all
 
 run:
-	zig build run
+	zig build run -Doptimize=ReleaseSafe --summary all
 
 test:
 	zig build test --summary all

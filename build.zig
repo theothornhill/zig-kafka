@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
 
     const cflags = &[_][]const u8{
         "-g",
-        "-O0",
+        "-O3",
         "-fPIC",
         "-Wall",
         "-Wsign-compare",

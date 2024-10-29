@@ -33,7 +33,7 @@
         },
         .@"zig-avro" = .{
             .url = "https://github.com/theothornhill/zig-avro/archive/refs/heads/main.zip",
-            .hash = "12202cde273ae6de79c29bf22aff7ca3a635a03afe958434546bfa51da9133f5e32c",
+            .hash = "1220ae46efdb1d3f6d2b96424afba0bcc122d53654cd54e8ed466fb375f40bdbc31d",
         },
     },
     .paths = .{
