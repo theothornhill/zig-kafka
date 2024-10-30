@@ -11,7 +11,7 @@ all: librdkafka run
 # endif
 
 librdkafka:
-	cd c/librdkafka && ./configure
+	cd c/librdkafka && ./configure --disable-zstd
 
 run-fast:
 	zig build run -Doptimize=ReleaseFast --summary all
