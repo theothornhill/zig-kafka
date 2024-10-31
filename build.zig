@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const kafka = b.addStaticLibrary(.{
-        .name = "kafka",
+        .name = "zig-kafka",
         .root_source_file = b.path("lib/kafka.zig"),
         .optimize = optimize,
         .target = target,
@@ -149,31 +149,22 @@ pub fn build(b: *std.Build) void {
         .flags = cflags,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "zig-kafka",
-        .root_source_file = b.path("src/main.zig"),
-        .optimize = optimize,
+    b.installArtifact(kafka);
+
+
+    const zk = b.addModule("zig-kafka", .{
+        .root_source_file = b.path("lib/kafka.zig"),
         .target = target,
+        .optimize = optimize,
     });
 
-    exe.addIncludePath(b.path("c/librdkafka/"));
-    exe.addIncludePath(b.path("c/librdkafka/src"));
-    exe.addIncludePath(b.path("c/librdkafka/src/nanopb"));
-    exe.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
+    zk.linkLibrary(kafka);
+    zk.addIncludePath(b.path("c/librdkafka/"));
+    zk.addIncludePath(b.path("c/librdkafka/src"));
+    zk.addIncludePath(b.path("c/librdkafka/src/nanopb"));
+    zk.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
+    // zk.addImport("zig-kafka", &kafka.root_module);
 
-    exe.root_module.addImport("kafka", &kafka.root_module);
-
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("lib/kafka.zig"),
@@ -185,7 +176,7 @@ pub fn build(b: *std.Build) void {
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src"));
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/nanopb"));
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
-    exe_unit_tests.root_module.addImport("kafka", &kafka.root_module);
+    // exe_unit_tests.root_module.addImport("kafka", &kafka.root_module);
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
