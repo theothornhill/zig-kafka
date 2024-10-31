@@ -10,10 +10,61 @@ const ResponseError = errors.ResponseError;
 
 pub const Consumer = struct {
     rk: *c.rd_kafka_t,
-    queue: *c.rd_kafka_queue_t,
+    queue: ?*c.rd_kafka_queue_t,
     topics: [*c]c.rd_kafka_topic_partition_list_t,
 
-    pub fn init(cfg: config.Config) !@This() {
+    pub const Message = struct {
+        msg: *c.struct_rd_kafka_message_s,
+
+        offset: i64 = 0,
+        partition: i32 = 0,
+        payload: ?[]const u8,
+        key: []const u8,
+
+        pub fn init(msg: ?*c.struct_rd_kafka_message_s) !?@This() {
+            if (msg) |message| {
+                try errors.ok(message.err);
+
+                return .{
+                    .offset = message.offset,
+                    .partition = message.partition,
+                    .payload = unpack(?[]const u8, message.payload, message.len),
+                    .key = unpack([]const u8, message.key, message.key_len),
+                    .msg = message,
+                };
+            }
+            return null;
+        }
+
+        pub fn deinit(self: @This()) void {
+            std.log.debug("Destroying consumer message", .{});
+            c.rd_kafka_message_destroy(self.msg);
+        }
+
+        fn unpack(comptime T: type, v: ?*anyopaque, len: usize) T {
+            return switch (T) {
+                []const u8 => {
+                    const bytePtr: [*c]const u8 = @ptrCast(v);
+                    return bytePtr[0..len];
+                },
+                else => {
+                    switch (@typeInfo(T)) {
+                        .optional => |opt| {
+                            if (v) |_| {
+                                return unpack(opt.child, v, len);
+                            } else {
+                                return null;
+                            }
+                        },
+                        else => {},
+                    }
+                    @panic("Type not supported");
+                },
+            };
+        }
+    };
+
+    pub fn init(cfg: *config.Config) !@This() {
         var buf: [512]u8 = undefined;
 
         if (c.rd_kafka_new(c.RD_KAFKA_CONSUMER, cfg.handle, &buf, buf.len)) |rk| {
@@ -24,8 +75,9 @@ pub const Consumer = struct {
             const queue = if (c.rd_kafka_queue_get_consumer(rk)) |q|
                 q
             else // We default to main queue if we don't have any consumer group
-                c.rd_kafka_queue_get_main(rk).?;
+                c.rd_kafka_queue_get_main(rk);
 
+            cfg.handle = undefined;
             return Consumer{
                 .rk = rk,
                 .queue = queue,
@@ -36,13 +88,22 @@ pub const Consumer = struct {
     }
 
     pub fn deinit(self: @This()) void {
+        log.info("Cleaning up consumer dependencies", .{});
+        if (self.queue) |q| {
+            c.rd_kafka_queue_destroy(q);
+        }
+
+        if (self.topics != null) {
+            c.rd_kafka_topic_partition_list_destroy(self.topics);
+        }
+
+        log.info("Closing consumer", .{});
         const close = c.rd_kafka_consumer_close(self.rk);
         if (close != c.RD_KAFKA_RESP_ERR_NO_ERROR) {
             @panic("WHOA WE DONE FUCKED UP!");
         }
 
-        c.rd_kafka_topic_partition_list_destroy(self.topics);
-
+        std.log.info("Destroying consumer handle", .{});
         c.rd_kafka_destroy(self.rk);
     }
 
@@ -60,8 +121,7 @@ pub const Consumer = struct {
         );
     }
 
-    pub fn subscribe(self: @This()) !void {
-        const topic = "rs-load-fast-event-v1";
+    pub fn subscribe(self: @This(), topic: []const u8) !void {
         _ = c.rd_kafka_topic_partition_list_add(
             self.topics,
             @ptrCast(topic),
@@ -71,60 +131,5 @@ pub const Consumer = struct {
         try errors.ok(
             c.rd_kafka_subscribe(self.rk, self.topics),
         );
-    }
-};
-
-test "consumer" {
-    var consumer = try Consumer.init();
-    const err = try consumer.subscribe();
-    std.debug.print("err: {}", .{err});
-}
-
-pub const Message = struct {
-    msg: *c.struct_rd_kafka_message_s,
-
-    offset: i64 = 0,
-    partition: i32 = 0,
-    payload: ?[]const u8,
-    key: []const u8,
-
-    pub fn init(msg: ?*c.struct_rd_kafka_message_s) !?@This() {
-        if (msg) |message| {
-            try errors.ok(message.err);
-
-            return .{
-                .offset = message.offset,
-                .partition = message.partition,
-                .payload = unpack(?[]const u8, message.payload, message.len),
-                .key = unpack([]const u8, message.key, message.key_len),
-                .msg = message,
-            };
-        }
-        return null;
-    }
-    pub fn deinit(self: @This()) void {
-        c.rd_kafka_message_destroy(self.msg);
-    }
-
-    fn unpack(comptime T: type, v: ?*anyopaque, len: usize) T {
-        return switch (T) {
-            []const u8 => {
-                const bytePtr: [*c]const u8 = @ptrCast(v);
-                return bytePtr[0..len];
-            },
-            else => {
-                switch (@typeInfo(T)) {
-                    .optional => |opt| {
-                        if (v) |_| {
-                            return unpack(opt.child, v, len);
-                        } else {
-                            return null;
-                        }
-                    },
-                    else => {},
-                }
-                @panic("Type not supported");
-            },
-        };
     }
 };

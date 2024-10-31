@@ -10,12 +10,9 @@ const errors = @import("errors.zig");
 pub const Config = cfg.Config;
 pub const LogLevel = cfg.LogLevel;
 pub const Producer = producer.Producer;
-pub const Consumer = consumer;
+pub const Consumer = consumer.Consumer;
 pub const Topic = topic.Topic;
 pub const ResponseError = errors.ResponseError;
-
-// TODO(Theo): Don't expose this in the end!
-pub const C = c;
 
 test {
     @import("std").testing.refAllDecls(@This());

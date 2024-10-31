@@ -41,6 +41,8 @@ pub fn build(b: *std.Build) void {
         "-g",
         "-O3",
         "-fPIC",
+        // Too much ub in librdkafka to be funny
+        "-fno-sanitize=all",
         "-Wall",
         "-Wsign-compare",
         "-Wfloat-equal",
@@ -161,12 +163,6 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("kafka", &kafka.root_module);
 
-    const @"zig-avro" = b.dependency("zig-avro", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    exe.root_module.addImport("zig-avro", @"zig-avro".module("zig-avro"));
-
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -190,7 +186,6 @@ pub fn build(b: *std.Build) void {
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/nanopb"));
     exe_unit_tests.addIncludePath(b.path("c/librdkafka/src/opentelemetry"));
     exe_unit_tests.root_module.addImport("kafka", &kafka.root_module);
-    exe_unit_tests.root_module.addImport("zig-avro", @"zig-avro".module("zig-avro"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

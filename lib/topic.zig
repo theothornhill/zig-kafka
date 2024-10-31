@@ -22,6 +22,7 @@ pub const Topic = struct {
     }
 
     pub fn deinit(self: @This()) void {
+        std.log.info("Destroying topic", .{});
         c.rd_kafka_topic_destroy(self.t);
     }
 

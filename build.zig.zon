@@ -31,10 +31,6 @@
             .url = "git+https://github.com/allyourcodebase/libressl?ref=3.9.2+1#02abfefee4e4eda28ce53c637b3c0d204ace8a6d",
             .hash = "12201f5cc06c88f191696106723797449baacb6ea38b07b6cf31c18c0382a6bea33e",
         },
-        .@"zig-avro" = .{
-            .url = "https://github.com/theothornhill/zig-avro/archive/refs/heads/main.zip",
-            .hash = "12201a91cdf4829a24d36dc784171554a222074e372b0c290ce034af54aa5d347f44",
-        },
     },
     .paths = .{
         "build.zig",
