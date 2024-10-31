@@ -21,8 +21,8 @@ pub fn build(b: *std.Build) void {
     });
 
     kafka.linkLibC();
-    kafka.linkSystemLibrary("sasl2");
-    kafka.linkSystemLibrary("curl");
+    // kafka.linkSystemLibrary("sasl2");
+    // kafka.linkSystemLibrary("curl");
 
     const zlib_dep = b.dependency("zlib", .{
         .target = target,
