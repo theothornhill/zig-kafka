@@ -44,7 +44,6 @@ pub const Producer = struct {
             };
         }
         @panic("Producer handle failed initializing");
-
     }
 
     pub fn deinit(self: @This()) void {
@@ -66,10 +65,19 @@ pub const Producer = struct {
         );
     }
 
-    pub fn poll(self: @This(), timeout_ms: usize) !void {
+    fn poll(self: @This(), timeout_ms: usize) !void {
         try errors.ok(
             c.rd_kafka_poll(self.handle, @intCast(timeout_ms)),
         );
+    }
+
+    pub fn poller(self: @This(), timeout_ms: usize, healthy: *bool) !void {
+        while (healthy.*) {
+            std.log.debug("Producer poll", .{});
+            try self.poll(timeout_ms);
+
+            std.time.sleep(std.time.ns_per_s * 15);
+        }
     }
 
     pub fn produce(self: @This(), message: Message) !void {
