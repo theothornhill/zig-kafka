@@ -97,6 +97,6 @@ pub const Producer = struct {
             ResponseError.Unknown => try errors.ok(c.rd_kafka_errno2err(res)),
             else => @panic("Undocumented error code from librdkafka found"),
         }
-        self.poll(0);
+        try self.poll(0);
     }
 };
