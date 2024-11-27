@@ -81,6 +81,7 @@ pub const Producer = struct {
     }
 
     pub fn produce(self: @This(), message: Message) !void {
+        _ = self;
         const res = c.rd_kafka_produce(
             message.topic.t,
             message.topic.partition,
@@ -97,6 +98,5 @@ pub const Producer = struct {
             ResponseError.Unknown => try errors.ok(c.rd_kafka_errno2err(res)),
             else => @panic("Undocumented error code from librdkafka found"),
         }
-        try self.poll(0);
     }
 };
