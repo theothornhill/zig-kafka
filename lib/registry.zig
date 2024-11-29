@@ -69,3 +69,9 @@ pub const Registry = struct {
         }
     };
 };
+
+test "testRegistry" {
+    const allocator = std.testing.allocator;
+    const cfg = config.Config.init();
+    _ = Registry.init(allocator, cfg);
+}
