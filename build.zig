@@ -18,8 +18,6 @@ pub fn build(b: *std.Build) void {
     });
 
     zk.linkSystemLibrary("rdkafka", .{});
-    zk.linkSystemLibrary("zlib", .{});
-    zk.linkSystemLibrary("zstd", .{});
     zk.addIncludePath(upstream.path("src"));
 
     const exe_unit_tests = b.addTest(.{
