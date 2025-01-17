@@ -29,7 +29,7 @@ pub const Config = struct {
         return error.ConfInit;
     }
 
-    pub fn set(self: @This(), key: []const u8, value: []const u8) !void {
+    pub fn set(self: @This(), key: [:0]const u8, value: [:0]const u8) !void {
         if (key.len == 0) return error.UnknownConfig;
         if (value.len == 0) return error.InvalidConfig;
 
