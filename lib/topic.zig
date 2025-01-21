@@ -35,7 +35,7 @@ pub const Topic = struct {
             },
             else => {
                 switch (@typeInfo(T)) {
-                    .optional => |opt| {
+                    .Optional => |opt| {
                         if (v) |_| {
                             return unpack(opt.child, v, len);
                         } else {
