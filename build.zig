@@ -15,9 +15,14 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("lib/kafka.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
 
-    zk.linkSystemLibrary("rdkafka", .{});
+    zk.linkSystemLibrary("rdkafka", .{ .needed = true });
+    zk.linkSystemLibrary("ssl", .{ .needed = true });
+    zk.linkSystemLibrary("crypto", .{ .needed = true });
+    zk.linkSystemLibrary("sasl2", .{ .needed = true });
+    zk.linkSystemLibrary("curl", .{ .needed = true });
     zk.addIncludePath(upstream.path("src"));
 
     const exe_unit_tests = b.addTest(.{
