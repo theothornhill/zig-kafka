@@ -35,6 +35,10 @@
             .url = "https://github.com/allyourcodebase/zstd/archive/refs/tags/1.5.6-2.tar.gz",
             .hash = "122040924472b1c510a7058596d43fb9461dcc20406f681eb9c2f6443375d2f571c4",
         },
+        .@"zig-avro" = .{
+            .url = "https://github.com/theothornhill/zig-avro/archive/refs/heads/main.zip",
+            .hash = "12206c70c128fb22ba38ed29a1d3e07a1aee096b6c46af3f601b923fcf07d6dd166b",
+        },
     },
     .paths = .{
         "build.zig",
