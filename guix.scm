@@ -113,43 +113,7 @@ containing both Producer and Consumer support.")
                 (if (string-contains src ".tar.gz")
                     (invoke "tar" "-xf" src "-C" dest "--strip-components=1")
                     (copy-recursively src dest)))))
-           `(("12206c70c128fb22ba38ed29a1d3e07a1aee096b6c46af3f601b923fcf07d6dd166b"
-              #$(origin
-                  (method git-fetch)
-                  (uri (git-reference
-                        (url "https://github.com/theothornhill/zig-avro")
-                        (commit "7ffe402975bba70fbf833de9a9feb3b1387cb71f")))
-                  (file-name "zig-avro")
-                  (sha256
-                   (base32 "15zciadvjz01brv4myz1y6jlifn5sjzcdz0c2ki4ifhb16ph1s4i"))))
-             ("1220d9e8d4fc3d9f425b9be4c890c97c35dee5b4c17ee8d00e61140750c10bed7c13"
-              #$(origin
-                  (method git-fetch)
-                  (uri (git-reference
-                        (url "https://github.com/theothornhill/zig-typeid")
-                        (commit "1b7c6869d184097e0d1071b2d4666946d2c012c9")))
-                  (file-name "zig-typeid")
-                  (sha256
-                   (base32 "1p0kpkhpm2kc3yir3zf4zjzgrgmw48zzh9p45jd99jbp3p0rryx0"))))
-             ("12204511340c69f7aa8c2e15aa53ab722f1aab29aa16dad7bd6fb2676a281823b23f"
-              #$(origin
-                  (method git-fetch)
-                  (uri (git-reference
-                        (url "https://github.com/theothornhill/zig-kafka")
-                        (commit "b2dffc0388cc46a6868c5b3622d7111f01f713b7")))
-                  (file-name "zig-kafka")
-                  (sha256
-                   (base32 "1szr6vz44l8nil77dimy3x4s0ipwzvsly2103jfviybwiii9v4mr"))))
-             ("1220d001e83e87eb6b489172efceb840fd2bb9a7fda0bf275b21797039f6dbdc1682"
-              #$(origin
-                  (method git-fetch)
-                  (uri (git-reference
-                        (url "https://github.com/helgeholm/ecs-log-formatter")
-                        (commit "2ab5eeeae781cd47fc16281615750c0e06e7e477")))
-                  (file-name "ecs-log-formatter")
-                  (sha256
-                   (base32 "1lrabhsxwjqkl9fj8mzymirvknbrkygs77dszm2b3gf4ygvrgrh1"))))
-             ("1220152dda3c1c2b1199537fb062042f04585c21189b930df0076cac791e2c220bc3"
+           `(("1220152dda3c1c2b1199537fb062042f04585c21189b930df0076cac791e2c220bc3"
               #$(origin
                   (method git-fetch)
                   (uri (git-reference

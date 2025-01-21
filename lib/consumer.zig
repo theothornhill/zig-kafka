@@ -1,7 +1,6 @@
 const std = @import("std");
 const c = @import("c.zig").c;
 const config = @import("config.zig");
-const avro = @import("zig-avro");
 const k = @import("kafka.zig");
 const log = std.log;
 const panic = std.debug.panic;
