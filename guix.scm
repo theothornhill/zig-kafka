@@ -159,7 +159,7 @@ containing both Producer and Consumer support.")
                         (commit "794ea1b0afca0f020f4e57b6732332231fb23c70")))
                   (file-name "zstd")
                   (sha256
-                   (base32 "066jr5787bp812vkzh2zi71xq40i16jd4z7xv3xkyh94vvfmy5rf"))))
+                   (base32 "1mshnj817iqf3qwwhhh6vjivskc2vkc9wwkq9z61hm1a2kd7vix9"))))
              ("1220fed0c74e1019b3ee29edae2051788b080cd96e90d56836eea857b0b966742efb"
               #$(origin
                   (method git-fetch)
@@ -190,9 +190,11 @@ containing both Producer and Consumer support.")
            (guix build utils)
            (ice-9 match))
          #:phases build-phases))
-  (native-inputs (list zig zig-zls))
-  (propagated-inputs
-   (list openssl curl python-wrapper cyrus-sasl librdkafka))
+  (propagated-inputs (list zig-0.13 zig-zls-0.13))
+  (inputs
+   (list openssl curl cyrus-sasl librdkafka))
+  (native-inputs
+   (list python-wrapper))
   (home-page "https://ziglang.org/")
   (synopsis "General-purpose programming language and toolchain")
   (description "Zig implementation over librdkafka")
