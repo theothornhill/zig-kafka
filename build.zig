@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const optimize = b.standardOptimizeOption(.{});
 
-    const upstream = b.dependency("upstream", .{
+    const @"zig-librdkafka" = b.dependency("zig-librdkafka", .{
         .target = target,
         .optimize = optimize,
     });
@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) void {
     zk.linkSystemLibrary("crypto", .{ .needed = true });
     zk.linkSystemLibrary("sasl2", .{ .needed = true });
     zk.linkSystemLibrary("curl", .{ .needed = true });
-    zk.addIncludePath(upstream.path("src"));
+    zk.addIncludePath(@"zig-librdkafka".path("src"));
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("lib/kafka.zig"),
@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe_unit_tests.linkLibC();
-    exe_unit_tests.addIncludePath(upstream.path("src"));
+    exe_unit_tests.addIncludePath(@"zig-librdkafka".path("src"));
     exe_unit_tests.root_module.addImport("zig-kafka", zk);
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);

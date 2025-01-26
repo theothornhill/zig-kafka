@@ -125,7 +125,7 @@ containing both Producer and Consumer support.")
                   (uri (git-reference
                         (url "https://github.com/confluentinc/librdkafka")
                         (commit "v2.6.0")))
-                  (file-name "upstream")
+                  (file-name "librdkafka")
                   (sha256
                    (base32 "1kjgz9ynq2rwpp373jnly1ns4iaqpscck5lmnzim5hkzsyxrafa2"))))
              ("122034ab2a12adf8016ffa76e48b4be3245ffd305193edba4d83058adbcfa749c107"
@@ -176,7 +176,7 @@ containing both Producer and Consumer support.")
                        (const #t))))
     (package
       (name "zig-kafka")
-      (version "0.0.1-git")
+      (version "0.0.2-git")
       (source (local-file "../.." "zig-kafka" #:recursive? #t #:select? vcs-file?))
       (build-system zig-build-system)
       (arguments
