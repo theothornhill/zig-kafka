@@ -22,7 +22,7 @@ pub const Config = struct {
             var cfg = Config{ .handle = h };
 
             try cfg.set("client.software.name", "zig-kafka");
-            try cfg.set("client.software.version", "0.0.2");
+            try cfg.set("client.software.version", "0.0.4");
 
             return cfg;
         }

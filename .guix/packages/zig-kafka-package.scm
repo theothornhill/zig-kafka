@@ -176,7 +176,7 @@ containing both Producer and Consumer support.")
                        (const #t))))
     (package
       (name "zig-kafka")
-      (version "0.0.2-git")
+      (version "0.0.4-git")
       (source (local-file "../.." "zig-kafka" #:recursive? #t #:select? vcs-file?))
       (build-system zig-build-system)
       (arguments
