@@ -1,1 +1,0 @@
-.guix/packages/zig-kafka-package.scm
