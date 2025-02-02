@@ -13,7 +13,7 @@ jobs:
       - name: Restore Guix pack cache
         uses: actions/cache@v4
         with:
-          path: ~/.config/cache/guix-bina
+          path: ~/.config/cache/guixbinary
           key: guix-pack-cache-${{ github.sha }}
           restore-keys: |
             guix-pack-cache-
@@ -21,7 +21,7 @@ jobs:
       - name: Check for Guix pack cache
         id: check-cache
         run: |
-          if [ -f ~/.config/cache/guix-bina/guix-pack.tar.gz ]; then
+          if [ -f ~/.config/cache/guixbinary/guix-pack.tar.gz ]; then
             echo "cache-hit=true" >> $GITHUB_OUTPUT
           else
             echo "cache-hit=false" >> $GITHUB_OUTPUT
@@ -50,14 +50,9 @@ jobs:
         if: steps.check-cache.outputs.cache-hit == 'false'
         id: pack-guix
         run: |
-          sudo -i /var/guix/profiles/per-user/root/current-guix/bin/guix pull
-          sudo systemctl restart guix-daemon.service
-          GUIX_PROFILE="$HOME/.config/guix/current"
-          source "$GUIX_PROFILE/etc/profile"
+          mkdir -p ~/.config/cache/guixbinary
 
-          mkdir -p ~/.config/cache/guix-bina
-          sudo -i /var/guix/profiles/per-user/root/current-guix/bin/guix search zig
-          pack_output=$(sudo -i /var/guix/profiles/per-user/root/current-guix/bin/guix pack -s x86_64-linux --localstatedir guix)
+          pack_output=$(guix pack guix --with-commit=guix=4fccad83875cf8f5846b181525f814ce5c240ef9 -s x86_64-linux --localstatedir  --without-tests=guix)
           echo "pack_output=$pack_output" >> $GITHUB_OUTPUT
         shell: bash
 
@@ -66,20 +61,20 @@ jobs:
         run: |
           # Extract the file path from pack_output and move it to the cache directory
           tarball_path="${{ steps.pack-guix.outputs.pack_output }}"
-          sudo cp "$tarball_path" ~/.config/cache/guix-bina/guix-pack.tar.gz
+          sudo cp "$tarball_path" ~/.config/cache/guixbinary/guix-pack.tar.gz
         shell: bash
 
       - name: Save Guix pack cache (unless cache hit)
         if: steps.check-cache.outputs.cache-hit == 'false'
         uses: actions/cache/save@v4
         with:
-          path: ~/.config/cache/guix-bina
+          path: ~/.config/cache/guixbinary
           key: guix-pack-cache-${{ github.sha }}
 
       - name: Install Guix from cache
         if: steps.check-cache.outputs.cache-hit == 'true'
         run: |
-          sudo tar --extract --file ~/.config/cache/guix-bina/guix-pack.tar.gz -C / --no-overwrite-dir
+          sudo tar --extract --file ~/.config/cache/guixbinary/guix-pack.tar.gz -C / --no-overwrite-dir
           sudo groupadd --system guixbuild
 
           for i in $(seq -w 1 10); do
@@ -135,5 +130,5 @@ jobs:
       #   with:
       #     repo-suffix: ${{ inputs.image-name }}
 
-      # - name: Docker push 
+      # - name: Docker push
       #   run: "docker image push ${{ steps.guix-pack.outputs.repository-uri }}:${{ github.sha }}"
