@@ -56,8 +56,8 @@ jobs:
           source "$GUIX_PROFILE/etc/profile"
 
           mkdir -p ~/.config/cache/guix-bina
-          guix search zig
-          pack_output=$(guix time-machine -- guix pack -s x86_64-linux --localstatedir guix)
+          sudo -i /var/guix/profiles/per-user/root/current-guix/bin/guix search zig
+          pack_output=$(sudo -i /var/guix/profiles/per-user/root/current-guix/bin/guix time-machine -- guix pack -s x86_64-linux --localstatedir guix)
           echo "pack_output=$pack_output" >> $GITHUB_OUTPUT
         shell: bash
 
