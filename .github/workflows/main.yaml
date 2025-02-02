@@ -1,0 +1,135 @@
+name: main
+on:
+  push:
+jobs:
+  build-with-pull:
+    name: Test with pulling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set LANG
+        run: echo LANG=en_US.utf8 >> $GITHUB_ENV
+        shell: bash
+
+      - name: Restore Guix pack cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.config/cache/guix
+          key: guix-pack-cache-${{ github.sha }}
+          restore-keys: |
+            guix-pack-cache-
+
+      - name: Check for Guix pack cache
+        id: check-cache
+        run: |
+          if [ -f ~/.config/cache/guix/guix-pack.tar.gz ]; then
+            echo "cache-hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache-hit=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Install Guix (unless cache hit)
+        if: steps.check-cache.outputs.cache-hit == 'false'
+        id: install-guix
+        uses: PromyLOPh/guix-install-action@v1
+        with:
+          pullAfterInstall: true
+          channels: |-
+            (list
+              (channel
+               (name 'guix)
+               (url "https://git.savannah.gnu.org/git/guix.git")
+               (branch "master")
+               (introduction
+                (make-channel-introduction
+                 "a6a4f773f321542daf8a95db99ff303f3f18a666"
+                 (openpgp-fingerprint
+                  "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA")))))
+
+      - name: Pack Guix (unless cache hit)
+        if: steps.check-cache.outputs.cache-hit == 'false'
+        id: pack-guix
+        run: |
+          . "$HOME/.config/guix/current/etc/profile"
+          mkdir -p ~/.config/cache/guix
+          sudo /var/guix/profiles/per-user/root/current-guix/bin/guix search zig
+          pack_output=$(sudo /var/guix/profiles/per-user/root/current-guix/bin/guix pack -s x86_64-linux --localstatedir --profile-name=current-guix guix)
+          echo "pack_output=$pack_output" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Rename and move tarball (unless cache hit)
+        if: steps.check-cache.outputs.cache-hit == 'false'
+        run: |
+          # Extract the file path from pack_output and move it to the cache directory
+          tarball_path="${{ steps.pack-guix.outputs.pack_output }}"
+          sudo cp "$tarball_path" ~/.config/cache/guix/guix-pack.tar.gz
+        shell: bash
+
+      - name: Save Guix pack cache (unless cache hit)
+        if: steps.check-cache.outputs.cache-hit == 'false'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.config/cache/guix
+          key: guix-pack-cache-${{ github.sha }}
+
+      - name: Install Guix from cache
+        if: steps.check-cache.outputs.cache-hit == 'true'
+        run: |
+          sudo tar --extract --file ~/.config/cache/guix/guix-pack.tar.gz -C / --no-overwrite-dir
+          sudo groupadd --system guixbuild
+
+          for i in $(seq -w 1 10); do
+            sudo useradd -g guixbuild -G guixbuild -d /var/empty -s "$(which nologin)" -c "Guix build user $i" --system "guixbuilder${i}"
+          done
+
+          export GUIX_PATH=/var/guix/profiles/per-user/root/current-guix
+
+          sudo cp $GUIX_PATH/lib/systemd/system/{gnu-store.mount,guix-daemon.service} /etc/systemd/system/
+          sudo chmod 664 /etc/systemd/system/{gnu-store.mount,guix-daemon.service}
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now gnu-store.mount guix-daemon.service
+
+          echo "$GUIX_PATH/bin" >> $GITHUB_PATH
+        shell: bash
+
+
+      - name: Guix version
+        run: guix describe
+
+      - name: Hash guix
+        run: hash guix
+        shell: bash
+
+      - name: Guix version 2
+        run: guix describe
+
+
+      - name: Authorize build farm
+        if: steps.check-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+            for F in /var/guix/profiles/per-user/root/current-guix/share/guix/*.pub; do
+                sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --authorize < $F
+            done
+
+      - name: Generate keys
+        if: steps.check-cache.outputs.cache-hit == 'true'
+        run: sudo /var/guix/profiles/per-user/root/current-guix/bin/guix archive --generate-key
+        shell: bash
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Guix build zig
+        id: guix-pack
+        # run: guix pack --format=docker --entry-point=bin/zig --root=zig-docker.tar.gz zig
+        run: guix search zig
+
+      # - name: setup ECR
+      #   id: ecr
+      #   uses: tv2norge/action-dokken-ecr-setup@v1
+      #   with:
+      #     repo-suffix: ${{ inputs.image-name }}
+
+      # - name: Docker push 
+      #   run: "docker image push ${{ steps.guix-pack.outputs.repository-uri }}:${{ github.sha }}"
