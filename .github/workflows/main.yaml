@@ -13,7 +13,7 @@ jobs:
       - name: Restore Guix pack cache
         uses: actions/cache@v4
         with:
-          path: ~/.config/cache/guixbinary
+          path: ~/.config/cache
           key: guix-pack-cache-${{ github.sha }}
           restore-keys: |
             guix-pack-cache-
@@ -21,7 +21,7 @@ jobs:
       - name: Check for Guix pack cache
         id: check-cache
         run: |
-          if [ -f ~/.config/cache/guixbinary/guix-pack.tar.gz ]; then
+          if [ -f ~/.config/cache/guix-pack.tar.gz ]; then
             echo "cache-hit=true" >> $GITHUB_OUTPUT
           else
             echo "cache-hit=false" >> $GITHUB_OUTPUT
@@ -50,9 +50,11 @@ jobs:
         if: steps.check-cache.outputs.cache-hit == 'false'
         id: pack-guix
         run: |
-          mkdir -p ~/.config/cache/guixbinary
+          mkdir -p ~/.config/cache
 
-          pack_output=$(guix pack guix --with-commit=guix=4fccad83875cf8f5846b181525f814ce5c240ef9 -s x86_64-linux --localstatedir  --without-tests=guix)
+          guix pull --substitute-urls=http://ci.guix.gnu.org
+
+          pack_output=$(guix pack --with-commit=guix=a6a4f773f321542daf8a95db99ff303f3f18a666 -s x86_64-linux --localstatedir guix --substitute-urls=http://ci.guix.gnu.org --profile-name=current-guix)
           echo "pack_output=$pack_output" >> $GITHUB_OUTPUT
         shell: bash
 
@@ -61,21 +63,24 @@ jobs:
         run: |
           # Extract the file path from pack_output and move it to the cache directory
           tarball_path="${{ steps.pack-guix.outputs.pack_output }}"
-          sudo cp "$tarball_path" ~/.config/cache/guixbinary/guix-pack.tar.gz
+          sudo cp "$tarball_path" ~/.config/cache/guix-pack.tar.gz
         shell: bash
 
       - name: Save Guix pack cache (unless cache hit)
         if: steps.check-cache.outputs.cache-hit == 'false'
         uses: actions/cache/save@v4
         with:
-          path: ~/.config/cache/guixbinary
+          path: ~/.config/cache
           key: guix-pack-cache-${{ github.sha }}
 
       - name: Install Guix from cache
         if: steps.check-cache.outputs.cache-hit == 'true'
         run: |
-          sudo tar --extract --file ~/.config/cache/guixbinary/guix-pack.tar.gz -C / --no-overwrite-dir
-          sudo groupadd --system guixbuild
+          ls -la
+          ls -la ~/.config/cache
+          sudo -- tar -zxf ~/.config/cache/guix-pack.tar.gz -C / --no-overwrite-dir
+          sudo -- ls -la /var/guix
+          sudo -- groupadd --system guixbuild
 
           for i in $(seq -w 1 10); do
             sudo useradd -g guixbuild -G guixbuild -d /var/empty -s "$(which nologin)" -c "Guix build user $i" --system "guixbuilder${i}"
@@ -94,14 +99,6 @@ jobs:
 
       - name: Guix version
         run: guix describe
-
-      - name: Hash guix
-        run: hash guix
-        shell: bash
-
-      - name: Guix version 2
-        run: guix describe
-
 
       - name: Authorize build farm
         if: steps.check-cache.outputs.cache-hit == 'true'
