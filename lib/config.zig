@@ -17,28 +17,45 @@ pub const LogLevel = enum(u32) {
 pub const Config = struct {
     handle: *c.rd_kafka_conf_t,
 
-    pub fn init() !Config {
+    pub fn init(allocator: std.mem.Allocator) !Config {
         if (c.rd_kafka_conf_new()) |h| {
-            var cfg = Config{ .handle = h };
+            var cfg = Config{
+                .handle = h,
+            };
 
-            try cfg.set("client.software.name", "zig-kafka");
-            try cfg.set("client.software.version", "0.0.5");
+            try cfg.set(allocator, "client.software.name", "zig-kafka");
+            try cfg.set(allocator, "client.software.version", "0.0.6");
+
+            try cfg.set(allocator, "partitioner", "murmur2");
+            try cfg.set(allocator, "compression.codec", "lz4");
 
             return cfg;
         }
         return error.ConfInit;
     }
 
-    pub fn set(self: @This(), key: [:0]const u8, value: [:0]const u8) !void {
+    pub fn deinit(self: @This()) void {
+        self.alloc.deinit();
+    }
+
+    pub fn set(
+        self: @This(),
+        allocator: std.mem.Allocator,
+        key: []const u8,
+        value: []const u8,
+    ) !void {
         if (key.len == 0) return error.UnknownConfig;
         if (value.len == 0) return error.InvalidConfig;
 
         var errstr: [512]u8 = undefined;
 
+        const k = try allocator.dupeZ(u8, key);
+        const v = try allocator.dupeZ(u8, value);
+
         const res: c.rd_kafka_conf_res_t = c.rd_kafka_conf_set(
             self.handle,
-            @ptrCast(key),
-            @ptrCast(value),
+            k,
+            v,
             &errstr,
             errstr.len,
         );
@@ -103,42 +120,56 @@ pub const Config = struct {
 };
 
 test "config should accept valid entries" {
-    var cfg = try Config.init();
-    var res = try cfg.set("bootstrap.servers", "localhost:9092");
-    try std.testing.expectEqual({}, res);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var cfg = try Config.init(arena.allocator());
+    try std.testing.expectEqual(
+        {},
+        try cfg.set(arena.allocator(), "bootstrap.servers", "localhost:9092"),
+    );
 
-    cfg = try Config.init();
-    res = try cfg.set("topic.auto.offset.reset", "earliest");
-    try std.testing.expectEqual({}, res);
+    try std.testing.expectEqual(
+        {},
+        try cfg.set(arena.allocator(), "topic.auto.offset.reset", "earliest"),
+    );
 }
 
 test "config should reject non-valid entries" {
-    var cfg = try Config.init();
-    var res = cfg.set("bootstap.servers", "localhost:9092");
-    try std.testing.expectError(error.UnknownConfig, res);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var cfg = try Config.init(arena.allocator());
+    try std.testing.expectError(
+        error.UnknownConfig,
+        cfg.set(arena.allocator(), "bootstap.servers", "localhost:9092"),
+    );
 
-    cfg = try Config.init();
-    res = cfg.set("topic.auto.offset.reset", "ørliest");
-    try std.testing.expectError(error.InvalidConfig, res);
+    try std.testing.expectError(
+        error.InvalidConfig,
+        cfg.set(arena.allocator(), "topic.auto.offset.reset", "ørliest"),
+    );
 
-    cfg = try Config.init();
-    res = cfg.set("", "wat");
-    try std.testing.expectError(error.UnknownConfig, res);
+    try std.testing.expectError(
+        error.UnknownConfig,
+        cfg.set(arena.allocator(), "", "wat"),
+    );
 
-    cfg = try Config.init();
-    res = cfg.set("auto.offset.reset", "");
-    try std.testing.expectError(error.InvalidConfig, res);
+    try std.testing.expectError(
+        error.InvalidConfig,
+        cfg.set(arena.allocator(), "auto.offset.reset", ""),
+    );
 }
 
 test "config should allow getting values" {
-    var cfg = try Config.init();
-    _ = try cfg.set("bootstrap.servers", "localhost:9092");
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var cfg = try Config.init(arena.allocator());
+    _ = try cfg.set(arena.allocator(), "bootstrap.servers", "localhost:9092");
 
     const res = try cfg.get("bootstrap.servers");
     try std.testing.expectEqualStrings("localhost:9092", res);
 
-    cfg = try Config.init();
-    _ = try cfg.set("bootstrap.servers", "localhost:9092");
+    cfg = try Config.init(arena.allocator());
+    _ = try cfg.set(arena.allocator(), "bootstrap.servers", "localhost:9092");
 
     try std.testing.expectError(error.UnknownConfig, cfg.get("botstrap.servers"));
 }
