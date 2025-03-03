@@ -23,11 +23,11 @@ pub fn build(b: *std.Build) void {
     zk.addIncludePath(librdkafka_artifact.getEmittedIncludeTree());
     zk.linkLibrary(librdkafka_artifact);
 
-    zk.linkSystemLibrary("z", .{ .needed = true, .preferred_link_mode = .static });
-    zk.linkSystemLibrary("ssl", .{ .needed = true, .preferred_link_mode = .static });
-    zk.linkSystemLibrary("crypto", .{ .needed = true, .preferred_link_mode = .static });
-    zk.linkSystemLibrary("lz4", .{ .needed = true, .preferred_link_mode = .static });
-    zk.linkSystemLibrary("sasl2", .{ .needed = true, .preferred_link_mode = .static });
+    zk.linkSystemLibrary("zlib", .{ .needed = true, .preferred_link_mode = .static });
+    zk.linkSystemLibrary("openssl", .{ .needed = true, .preferred_link_mode = .static });
+    zk.linkSystemLibrary("libcrypto", .{ .needed = true, .preferred_link_mode = .static });
+    zk.linkSystemLibrary("liblz4", .{ .needed = true, .preferred_link_mode = .static });
+    zk.linkSystemLibrary("libsasl2", .{ .needed = true, .preferred_link_mode = .static });
 
 
     const exe_unit_tests = b.addTest(.{
