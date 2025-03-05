@@ -32,7 +32,10 @@ pub const Producer = struct {
         }
     };
 
-    pub fn init(cfg: *config.Config) !Producer {
+    pub fn init(allocator: std.mem.Allocator, cfg: *config.Config) !Producer {
+        try cfg.set(allocator, "partitioner", "murmur2");
+        try cfg.set(allocator, "compression.codec", "lz4");
+
         var buf: [256]u8 = undefined;
 
         if (c.rd_kafka_new(c.RD_KAFKA_PRODUCER, cfg.handle, &buf, buf.len)) |ph| {

@@ -26,9 +26,6 @@ pub const Config = struct {
             try cfg.set(allocator, "client.software.name", "zig-kafka");
             try cfg.set(allocator, "client.software.version", "0.0.6");
 
-            try cfg.set(allocator, "partitioner", "murmur2");
-            try cfg.set(allocator, "compression.codec", "lz4");
-
             return cfg;
         }
         return error.ConfInit;
