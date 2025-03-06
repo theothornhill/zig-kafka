@@ -24,7 +24,7 @@ pub const Config = struct {
             };
 
             try cfg.set(allocator, "client.software.name", "zig-kafka");
-            try cfg.set(allocator, "client.software.version", "0.0.6");
+            try cfg.set(allocator, "client.software.version", "1.0.0");
 
             return cfg;
         }

@@ -48,7 +48,7 @@ pub const Consumer = struct {
                 },
                 else => {
                     switch (@typeInfo(T)) {
-                        .Optional => |opt| {
+                        .optional => |opt| {
                             if (v) |_| {
                                 return unpack(opt.child, v, len);
                             } else {

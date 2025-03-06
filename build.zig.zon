@@ -1,11 +1,11 @@
 .{
-    .name = "zig-kafka",
-    .version = "0.0.6",
-    .minimum_zig_version = "0.13.0",
+    .name = .zigkafka,
+    .fingerprint = 0xcef3e6efcff2a10e,
+    .version = "1.0.0",
     .dependencies = .{
         .librdkafka = .{
-            .url = "https://github.com/theothornhill/librdkafka/archive/refs/tags/2.8.0+2.zip",
-            .hash = "1220bbca827365456e80c1847ed3b35fb05426a684ebaf4b8ff7e391628c4b1c92ac",
+            .url = "https://github.com/theothornhill/librdkafka/archive/refs/tags/2.8.0+3.zip",
+            .hash = "librdkafka-2.8.0-WaVnhVpdkAAk5TvGPky7AowXF1c5xEJ19bZV_iugwkS7",
         },
     },
     .paths = .{
