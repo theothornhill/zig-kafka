@@ -11,8 +11,8 @@ const Producer = @This();
 
 handle: *c.rd_kafka_t,
 queue: ?*c.rd_kafka_queue_t,
-var buffer: [1024 * 1024]u8 = undefined;
-var pos: usize = 0;
+buffer: [1024 * 1024]u8,
+pos: usize = 0,
 
 pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
     try cfg.set(allocator, "partitioner", "murmur2");
@@ -26,6 +26,8 @@ pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
         return .{
             .handle = ph,
             .queue = c.rd_kafka_queue_get_main(ph),
+            .buffer = undefined,
+            .pos = 0,
         };
     }
     @panic("Producer handle failed initializing");
@@ -65,13 +67,13 @@ pub fn poller(self: @This(), timeout_ms: usize, healthy: *bool) !void {
     }
 }
 
-pub fn produce(_: @This(), topic: Topic, key: []const u8) !void {
+pub fn produce(self: *@This(), topic: Topic, key: []const u8) !void {
     const res = c.rd_kafka_produce(
         topic.t,
         topic.partition,
         c.RD_KAFKA_MSG_F_COPY,
-        @constCast(@ptrCast(buffer[0..pos])),
-        pos,
+        @constCast(@ptrCast(self.buffer[0..self.pos])),
+        self.pos,
         @ptrCast(key),
         key.len,
         null,
@@ -82,23 +84,25 @@ pub fn produce(_: @This(), topic: Topic, key: []const u8) !void {
         ResponseError.Unknown => try errors.ok(c.rd_kafka_errno2err(res)),
         else => @panic("Undocumented error code from librdkafka found"),
     }
-    buffer = undefined;
-    pos = 0;
+
+    self.pos = 0;
 }
 
-pub const Writer = std.io.Writer(*Producer, ResponseError, write);
+pub const WError = ResponseError || error{OutOfMemory} || error{};
+
+pub const Writer = std.io.Writer(*Producer, WError, write);
 
 pub fn writer(self: *Producer) Writer {
     return .{ .context = self };
 }
 
-pub fn write(_: *Producer, bytes: []const u8) ResponseError!usize {
+pub fn write(self: *Producer, bytes: []const u8) ResponseError!usize {
     for (bytes) |b| {
-        if (pos > 1024 * 1024) {
+        if (self.pos > 1024 * 1024) {
             return error.Fail;
         }
-        buffer[pos] = b;
-        pos += 1;
+        self.buffer[self.pos] = b;
+        self.pos += 1;
     }
     return bytes.len;
 }
