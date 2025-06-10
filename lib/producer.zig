@@ -6,13 +6,13 @@ const panic = std.debug.panic;
 const errors = @import("errors.zig");
 const ResponseError = errors.ResponseError;
 const Topic = @import("topic.zig");
-
+const avro = @import("zig-avro");
 const Producer = @This();
 
 handle: *c.rd_kafka_t,
 queue: ?*c.rd_kafka_queue_t,
-buffer: [1024 * 1024]u8,
-pos: usize = 0,
+buffer: std.ArrayList(u8),
+allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
     try cfg.set(allocator, "partitioner", "murmur2");
@@ -24,10 +24,10 @@ pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
         cfg.handle = undefined;
 
         return .{
+            .allocator = allocator,
             .handle = ph,
             .queue = c.rd_kafka_queue_get_main(ph),
-            .buffer = undefined,
-            .pos = 0,
+            .buffer = try std.ArrayList(u8).initCapacity(allocator, 1024),
         };
     }
     @panic("Producer handle failed initializing");
@@ -67,13 +67,27 @@ pub fn poller(self: @This(), timeout_ms: usize, healthy: *bool) !void {
     }
 }
 
-pub fn produce(self: *@This(), topic: Topic, key: []const u8) !void {
+pub fn produce(
+    self: *@This(),
+    comptime T: type,
+    topic: Topic,
+    schema_id: u32,
+    key: []const u8,
+    payload: *T,
+) !void {
+    self.buffer.shrinkRetainingCapacity(0);
+
+    var writer = self.buffer.writer();
+    try writer.writeByte(0);
+    try writer.writeInt(u32, schema_id, .big);
+    _ = try avro.encode(T, payload, &writer);
+
     const res = c.rd_kafka_produce(
         topic.t,
         topic.partition,
         c.RD_KAFKA_MSG_F_COPY,
-        @constCast(@ptrCast(self.buffer[0..self.pos])),
-        self.pos,
+        @constCast(@ptrCast(self.buffer.items)),
+        self.buffer.items.len,
         @ptrCast(key),
         key.len,
         null,
@@ -84,42 +98,6 @@ pub fn produce(self: *@This(), topic: Topic, key: []const u8) !void {
         ResponseError.Unknown => try errors.ok(c.rd_kafka_errno2err(res)),
         else => @panic("Undocumented error code from librdkafka found"),
     }
-
-    self.pos = 0;
-}
-
-pub const WError = ResponseError || error{OutOfMemory} || error{};
-
-pub const Writer = std.io.Writer(*Producer, WError, write);
-
-pub fn writer(self: *Producer) Writer {
-    return .{ .context = self };
-}
-
-pub fn write(self: *Producer, bytes: []const u8) ResponseError!usize {
-    for (bytes) |b| {
-        if (self.pos > 1024 * 1024) {
-            return error.Fail;
-        }
-        self.buffer[self.pos] = b;
-        self.pos += 1;
-    }
-    return bytes.len;
-}
-
-test "Producer Message writer" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    var config = try Config.init(arena.allocator());
-    var producer = try init(arena.allocator(), &config);
-    defer producer.deinit();
-
-    var wr = producer.writer();
-
-    _ = try wr.write("hello");
-    _ = try wr.write(" there");
-
-    try std.testing.expectEqualStrings("hello there", producer.buffer[0..producer.pos]);
 }
 
 test {

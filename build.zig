@@ -17,8 +17,15 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("lib/kafka.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = true
+        .link_libc = true,
     });
+
+    const @"zig-avro" = b.dependency("zig-avro", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    zk.addImport("zig-avro", @"zig-avro".module("zig-avro"));
 
     zk.addIncludePath(librdkafka_artifact.getEmittedIncludeTree());
     zk.linkLibrary(librdkafka_artifact);
@@ -29,7 +36,6 @@ pub fn build(b: *std.Build) void {
     zk.linkSystemLibrary("liblz4", .{ .needed = true, .preferred_link_mode = .static });
     zk.linkSystemLibrary("libsasl2", .{ .needed = true, .preferred_link_mode = .static });
 
-
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("lib/kafka.zig"),
         .target = target,
@@ -38,6 +44,7 @@ pub fn build(b: *std.Build) void {
 
     exe_unit_tests.addIncludePath(librdkafka_artifact.getEmittedIncludeTree());
     exe_unit_tests.root_module.addImport("zig-kafka", zk);
+    exe_unit_tests.root_module.addImport("zig-avro", @"zig-avro".module("zig-avro"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
