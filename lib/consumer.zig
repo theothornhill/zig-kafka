@@ -59,9 +59,9 @@ pub fn Consumer(comptime T: type) type {
             c.rd_kafka_destroy(self._rk);
         }
 
-        pub fn poll(self: *Consumer(T), timeout_ms: u64) !?Message {
+        pub fn poll(self: *Consumer(T), schema_id: u32, timeout_ms: u64) !?Message {
             const msg = c.rd_kafka_consumer_poll(self._rk, @intCast(timeout_ms));
-            try self.init_message(msg orelse return null);
+            try self.init_message(schema_id, msg orelse return null);
             return self.current_message;
         }
 
@@ -79,7 +79,7 @@ pub fn Consumer(comptime T: type) type {
             try errors.ok(c.rd_kafka_subscribe(self._rk, self._topics));
         }
 
-        fn init_message(self: *Consumer(T), message: *c.struct_rd_kafka_message_s) !void {
+        fn init_message(self: *Consumer(T), schema_id: u32, message: *c.struct_rd_kafka_message_s) !void {
             try errors.ok(message.err);
 
             self.current_message = .{
@@ -91,7 +91,13 @@ pub fn Consumer(comptime T: type) type {
             };
 
             if (message.payload) |p| {
-                _ = try avro.Reader.read(T, &self.current_message.payload.?, str(p, message.len)[5..]);
+                const inbuf = str(p, message.len);
+                const got_schema_id = std.mem.readInt(u32, inbuf[1..5], .big);
+                if (got_schema_id != schema_id) {
+                    std.log.err("Expected schema ID {d}, got {d}", .{ schema_id, got_schema_id });
+                    return errors.SchemaError.UnexpectedSchemaId;
+                }
+                _ = try avro.Reader.read(T, &self.current_message.payload.?, inbuf[5..]);
             } else {
                 // In this case we encountered a tombstone, and need to treat it as such.
                 self.current_message.payload = null;
