@@ -96,7 +96,7 @@ pub fn Consumer(comptime T: type) type {
                 const inbuf = str(p, message.len);
                 const got_schema_id = std.mem.readInt(u32, inbuf[1..5], .big);
                 if (got_schema_id != self.schema_id) {
-                    std.log.err("Expected schema ID {d}, got {d}", .{ self.schema_id, got_schema_id });
+                    std.log.info("Expected schema ID {d}, got {d}", .{ self.schema_id, got_schema_id });
                     return errors.SchemaError.UnexpectedSchemaId;
                 }
                 _ = try avro.Reader.read(T, &self.current_message.payload.?, inbuf[5..]);
@@ -127,11 +127,24 @@ pub fn Consumer(comptime T: type) type {
     };
 }
 
+test "Schema ID guard" {
+    var cc = Consumer(bool){ .schema_id = 1, ._queue = null, ._rk = undefined, ._topics = undefined };
+
+    var kafka_msg = c.struct_rd_kafka_message_s{
+        .payload = @ptrCast(@constCast(&[_]u8{ 0x0, 0x0, 0x0, 0x0, 0x3 })),
+        .len = 9,
+        .key = @ptrCast(@constCast("hello")),
+        .key_len = 5,
+    };
+
+    try std.testing.expectError(errors.SchemaError.UnexpectedSchemaId, cc.init_message(&kafka_msg));
+}
+
 test "Message parse" {
     const Foo = struct {
         a: bool,
     };
-    var cc = Consumer(Foo){ ._queue = null, ._rk = undefined, ._topics = undefined };
+    var cc = Consumer(Foo){ .schema_id = 0, ._queue = null, ._rk = undefined, ._topics = undefined };
 
     var kafka_msg = c.struct_rd_kafka_message_s{
         .payload = @ptrCast(@constCast(&[_]u8{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x1 })),
