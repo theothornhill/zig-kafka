@@ -13,10 +13,11 @@ pub fn Consumer(comptime T: type) type {
         _rk: *c.rd_kafka_t,
         _queue: ?*c.rd_kafka_queue_t,
         _topics: [*c]c.rd_kafka_topic_partition_list_t,
+        schema_id: u32,
 
         current_message: Message = undefined,
 
-        pub fn init(cfg: *Config) !Consumer(T) {
+        pub fn init(cfg: *Config, schema_id: u32) !Consumer(T) {
             var buf: [512]u8 = undefined;
 
             const rk = c.rd_kafka_new(c.RD_KAFKA_CONSUMER, cfg.handle, &buf, buf.len) orelse
@@ -36,6 +37,7 @@ pub fn Consumer(comptime T: type) type {
                 ._rk = rk,
                 ._queue = queue,
                 ._topics = c.rd_kafka_topic_partition_list_new(10),
+                .schema_id = schema_id,
             };
         }
 
@@ -91,7 +93,13 @@ pub fn Consumer(comptime T: type) type {
             };
 
             if (message.payload) |p| {
-                _ = try avro.Reader.read(T, &self.current_message.payload.?, str(p, message.len)[5..]);
+                const inbuf = str(p, message.len);
+                const got_schema_id = std.mem.readInt(u32, inbuf[1..5], .big);
+                if (got_schema_id != self.schema_id) {
+                    std.log.err("Expected schema ID {d}, got {d}", .{ self.schema_id, got_schema_id });
+                    return errors.SchemaError.UnexpectedSchemaId;
+                }
+                _ = try avro.Reader.read(T, &self.current_message.payload.?, inbuf[5..]);
             } else {
                 // In this case we encountered a tombstone, and need to treat it as such.
                 self.current_message.payload = null;

@@ -2,6 +2,12 @@
 
 const std = @import("std");
 
+pub const SchemaError = error{
+    RegistryUnreachable,
+    RegistryAngry,
+    UnexpectedSchemaId,
+};
+
 pub const ResponseError = error{
     Fail,                                      // = -196
     NoOffset,                                  // = -161
