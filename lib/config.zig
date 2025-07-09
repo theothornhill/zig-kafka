@@ -16,7 +16,7 @@ pub fn init(allocator: std.mem.Allocator) !Config {
         };
 
         try cfg.set(allocator, "client.software.name", "zig-kafka");
-        try cfg.set(allocator, "client.software.version", "2.0.0");
+        try cfg.set(allocator, "client.software.version", "4.0.2");
 
         return cfg;
     }
