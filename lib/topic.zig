@@ -16,7 +16,7 @@ pub fn init(handle: *c.rd_kafka_t, name: []const u8) Topic {
         .t = c.rd_kafka_topic_new(
             handle,
             @constCast(@ptrCast(name)),
-            c.rd_kafka_conf_get_default_topic_conf(@constCast(c.rd_kafka_conf(handle))),
+            null,
         ),
         .name = name,
     };

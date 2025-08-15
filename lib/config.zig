@@ -20,6 +20,7 @@ pub fn init(allocator: std.mem.Allocator) !Config {
 
         return cfg;
     }
+    
     return error.ConfInit;
 }
 
