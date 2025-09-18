@@ -11,7 +11,7 @@ const Producer = @This();
 
 handle: *c.rd_kafka_t,
 queue: ?*c.rd_kafka_queue_t,
-buffer: std.ArrayList(u8),
+buffer: std.Io.Writer.Allocating,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
@@ -27,7 +27,7 @@ pub fn init(allocator: std.mem.Allocator, cfg: *Config) !Producer {
             .allocator = allocator,
             .handle = ph,
             .queue = c.rd_kafka_queue_get_main(ph),
-            .buffer = try std.ArrayList(u8).initCapacity(allocator, 1024),
+            .buffer = try .initCapacity(allocator, 1024),
         };
     }
     @panic("Producer handle failed initializing");
@@ -63,7 +63,7 @@ pub fn poller(self: @This(), timeout_ms: usize, healthy: *bool) !void {
         std.log.debug("Producer poll", .{});
         try self.poll(timeout_ms);
 
-        std.time.sleep(std.time.ns_per_s * 15);
+        std.Thread.sleep(std.time.ns_per_s * 15);
     }
 }
 
