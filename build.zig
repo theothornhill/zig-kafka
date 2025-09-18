@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const librdkafka_artifact = librdkafka.artifact("rdkafka");
+    b.installArtifact(librdkafka_artifact);
 
     const zk = b.addModule("zig-kafka", .{
         .root_source_file = b.path("lib/kafka.zig"),
@@ -36,10 +37,14 @@ pub fn build(b: *std.Build) void {
     zk.linkSystemLibrary("liblz4", .{ .needed = true, .preferred_link_mode = .static });
     zk.linkSystemLibrary("libsasl2", .{ .needed = true, .preferred_link_mode = .static });
 
+    // b.installArtifact(zk);
+
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("lib/kafka.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("lib/kafka.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     exe_unit_tests.addIncludePath(librdkafka_artifact.getEmittedIncludeTree());
