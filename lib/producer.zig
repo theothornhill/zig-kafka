@@ -77,17 +77,17 @@ pub fn produce(
 ) !void {
     self.buffer.shrinkRetainingCapacity(0);
 
-    var writer = self.buffer.writer();
-    try writer.writeByte(0);
-    try writer.writeInt(u32, schema_id, .big);
-    _ = try avro.encode(T, payload, &writer);
+    try self.buffer.writer.writeByte(0);
+    try self.buffer.writer.writeInt(u32, schema_id, .big);
+    _ = try avro.encode(T, payload, &self.buffer.writer);
 
+    const written = self.buffer.written();
     const res = c.rd_kafka_produce(
         topic.t,
         topic.partition,
         c.RD_KAFKA_MSG_F_COPY,
-        @constCast(@ptrCast(self.buffer.items)),
-        self.buffer.items.len,
+        written.ptr,
+        written.len,
         @ptrCast(key),
         key.len,
         null,
