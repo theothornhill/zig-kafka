@@ -1,7 +1,7 @@
 .{
     .name = .zigkafka,
     .fingerprint = 0xcef3e6efcff2a10e,
-    .version = "5.0.0",
+    .version = "5.0.1",
     .dependencies = .{
         .librdkafka = .{
             .url = "https://github.com/theothornhill/librdkafka/archive/refs/tags/2.8.0+5.zip",
