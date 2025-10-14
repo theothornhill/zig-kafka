@@ -20,13 +20,15 @@ fn authUrl(self: @This(), url_path: []const u8) !std.Uri {
 
 fn fetchSchema(self: @This(), response_storage: *std.Io.Writer, subject: []const u8, schema: []const u8) !void {
     const Schema = struct { schema: []const u8 };
-    var client = std.http.Client{ .allocator = self.allocator };
+    var client = std.http.Client{
+        .allocator = self.allocator,
+        .read_buffer_size = 1024 * 1024,
+        .write_buffer_size = 1024 * 1024,
+    };
     defer client.deinit();
     const url_path = try std.fmt.allocPrint(self.allocator, "/subjects/{s}/versions?normalize=true", .{subject});
     defer self.allocator.free(url_path);
     const auth_url = try self.authUrl(url_path);
-    const shb = try self.allocator.alloc(u8, 1024);
-    defer self.allocator.free(shb);
     var schema_json: std.Io.Writer.Allocating = .init(self.allocator);
     defer schema_json.deinit();
     var json_writer: std.json.Stringify = .{ .writer = &schema_json.writer };
