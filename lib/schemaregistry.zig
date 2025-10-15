@@ -24,6 +24,7 @@ fn fetchSchema(self: @This(), response_storage: *std.Io.Writer, subject: []const
         .allocator = self.allocator,
         .read_buffer_size = 1024 * 1024,
         .write_buffer_size = 1024 * 1024,
+        .tls_buffer_size = 16 * std.crypto.tls.max_ciphertext_record_len,
     };
     defer client.deinit();
     const url_path = try std.fmt.allocPrint(self.allocator, "/subjects/{s}/versions?normalize=true", .{subject});
