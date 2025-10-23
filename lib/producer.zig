@@ -58,8 +58,9 @@ fn poll(self: @This(), timeout_ms: usize) !void {
     );
 }
 
-pub fn poller(self: @This(), timeout_ms: usize, healthy: *bool) !void {
-    while (healthy.*) {
+/// If set, healthy is a flag telling the poller to exit gracefully.
+pub fn poller(self: @This(), timeout_ms: usize, healthy: ?*bool) !void {
+    while (if (healthy) |h| h.* else true) {
         std.log.debug("Producer poll", .{});
         try self.poll(timeout_ms);
 
