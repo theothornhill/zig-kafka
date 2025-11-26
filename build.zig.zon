@@ -1,15 +1,15 @@
 .{
     .name = .zigkafka,
     .fingerprint = 0xcef3e6efcff2a10e,
-    .version = "6.1.0",
+    .version = "6.1.1",
     .dependencies = .{
         .librdkafka = .{
             .url = "https://github.com/theothornhill/librdkafka/archive/refs/tags/2.8.0+5.zip",
             .hash = "librdkafka-2.8.0-WaVnhedgkABjPXsz_2L10ORZmLCXhQd3eFpFJJqJdn_g",
         },
         .@"zig-avro" = .{
-            .url = "https://github.com/theothornhill/zig-avro/archive/refs/tags/5.1.0.tar.gz",
-            .hash = "zig_avro-5.1.0-LSuFEbe0AgCgcoP1wO5zdYyUPC6Iqoyj8ByWKGVVHTAh",
+            .url = "https://github.com/theothornhill/zig-avro/archive/refs/tags/5.1.1.zip",
+            .hash = "zig_avro-5.1.1-LSuFEcG0AgDDJLHZRuRiD0mJF8TO0RyBhh0WxUOPp25X",
         },
     },
     .paths = .{
