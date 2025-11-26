@@ -74,13 +74,13 @@ pub fn produce(
     topic: Topic,
     schema_id: u32,
     key: []const u8,
-    payload: *T,
+    payload: *const T,
 ) !void {
     self.buffer.shrinkRetainingCapacity(0);
 
     try self.buffer.writer.writeByte(0);
     try self.buffer.writer.writeInt(u32, schema_id, .big);
-    _ = try avro.encode(T, payload, &self.buffer.writer);
+    _ = try avro.Serialize.write(T, &self.buffer.writer, payload);
 
     const written = self.buffer.written();
     const res = c.rd_kafka_produce(

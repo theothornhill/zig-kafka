@@ -8,8 +8,8 @@
             .hash = "librdkafka-2.8.0-WaVnhedgkABjPXsz_2L10ORZmLCXhQd3eFpFJJqJdn_g",
         },
         .@"zig-avro" = .{
-            .url = "https://github.com/theothornhill/zig-avro/archive/refs/tags/4.0.0.tar.gz",
-            .hash = "zig_avro-4.0.0-LSuFEReDAgCArNx7sITYxUODftm4K4qCLDz6VYsWcya2",
+            .url = "https://github.com/theothornhill/zig-avro/archive/refs/tags/5.0.0.tar.gz",
+            .hash = "zig_avro-5.0.0-LSuFEVu0AgAGeBSANhOi6TOLLWpaeJk6JWzTQPAvyGDv",
         },
     },
     .paths = .{

@@ -99,7 +99,7 @@ pub fn Consumer(comptime T: type) type {
                     std.log.info("Expected schema ID {d}, got {d}", .{ self.schema_id, got_schema_id });
                     return errors.SchemaError.UnexpectedSchemaId;
                 }
-                _ = try avro.Reader.read(T, &self.current_message.payload.?, inbuf[5..]);
+                _ = try avro.Deserialize.read(T, &self.current_message.payload.?, inbuf[5..]);
             } else {
                 // In this case we encountered a tombstone, and need to treat it as such.
                 self.current_message.payload = null;
